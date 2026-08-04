@@ -563,7 +563,7 @@ async function handleCSV(f){
       chunk.forEach(c=>DB.clients.push(c));
     }
   }catch(e){ toast('Erro ao gravar: '+(e.code||e.message)); return; }
-  viewResumo(document.getElementById('view')); // recarrega para atualizar KPIs
+  viewResumo(document.getElementById('view')); 
 }
 
 let searchState={q:'',results:[]};
@@ -913,7 +913,7 @@ const PLACEHOLDERS=['{nome}','{horario}','{data}','{servico}'];
 
 function viewCRM(v){
   v.innerHTML=`
-  <div class="pagehead"><div><h1>CRM · Comunicação</h1>
+  <div class="pagehead"><div><h1>Disparador de WhatsApps</h1>
     <div class="greet">Monte mensagens automáticas ou agende disparos em massa.</div></div>
     <div style="display:flex;gap:10px">
       <button class="btn btn-coral" id="openBlast">${I.send} Novo Disparo</button>
@@ -922,15 +922,18 @@ function viewCRM(v){
   </div>
   
   <div class="row2" style="margin-bottom:18px;align-items:start;">
-    <div class="banner" style="margin-bottom:0">${I.warn}<div>O <b>disparo automático de templates</b> precisa de um agendador no servidor. Os disparos em massa feitos no botão azul são simulados e escalonados na janela de 1 hora no front-end.</div></div>
+    <div class="banner" style="margin-bottom:0">${I.warn}<div>O <b>disparo em massa (botão azul)</b> envia todos os opt-ins para a nuvem. O disparador remoto garante o envio gradativo na janela de 1 hora selecionada.</div></div>
     
     <div class="card" style="padding:16px">
-      <h3 style="font-size:14px;margin-bottom:8px">Simulador de Cancelamento (Webhook)</h3>
-      <div style="display:flex;gap:8px">
-        <input id="simPhone" class="inp" placeholder="Telefone (ex: 79 99999-9999)" inputmode="numeric">
-        <button id="simBtn" class="btn btn-danger btn-sm">Simular 'cancelar'</button>
+      <h3 style="font-size:14px;margin-bottom:8px">Disparo de Teste</h3>
+      <div class="field" style="margin-bottom:8px">
+        <input id="testPhone" class="inp" placeholder="Telefone (ex: 79 99999-9999)" inputmode="numeric">
       </div>
-      <div class="hint" style="margin-top:6px">Testa o opt-out: Digite o celular de um cliente e simule que ele respondeu "cancelar".</div>
+      <div class="field" style="margin-bottom:8px">
+        <textarea id="testMsg" class="inp" rows="2" placeholder="Sua mensagem de teste..."></textarea>
+      </div>
+      <button id="testBtn" class="btn btn-coral btn-sm">Enviar Teste Agora</button>
+      <div class="hint" style="margin-top:6px">Testa a conexão enviando a mensagem imediatamente para o número informado.</div>
     </div>
   </div>
 
@@ -938,20 +941,31 @@ function viewCRM(v){
   document.getElementById('newTpl').onclick=()=>openTemplateModal(null);
   document.getElementById('openBlast').onclick=openBlastModal;
   
-  document.getElementById('simBtn').onclick=async()=>{
-    const val = document.getElementById('simPhone').value;
-    if(!val) return;
+  document.getElementById('testBtn').onclick = async () => {
+    const val = document.getElementById('testPhone').value;
+    const msg = document.getElementById('testMsg').value.trim();
+    if(!val) return toast('Informe o telefone para o teste.');
+    if(!msg) return toast('A mensagem de teste não pode estar vazia.');
+    
     const phone = normPhone(val);
-    const cli = DB.clients.find(c => c.phone === phone);
-    if(cli){
-      try{
-        await updateDoc(doc(fs, 'clientes', cli.id), { optIn: false });
-        cli.optIn = false;
-        toast(`Cancelado! ${cli.firstName} marcado como opt-out.`);
-        document.getElementById('simPhone').value = '';
-      }catch(e){ toast('Erro no banco: ' + e.message); }
-    }else{
-      toast('Nenhum cliente encontrado com esse telefone.');
+    const btn = document.getElementById('testBtn');
+    
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    
+    try {
+      const result = await WhAPI.send(phone, msg);
+      if(result.ok) {
+         toast(result.simulated ? 'Teste simulado com sucesso (veja o console).' : 'Mensagem enviada com sucesso!');
+         document.getElementById('testMsg').value = '';
+      } else {
+         toast('Erro ao enviar teste: ' + (result.error || result.status));
+      }
+    } catch(e) {
+      toast('Erro: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar Teste Agora';
     }
   };
 
@@ -1091,16 +1105,15 @@ function openBlastModal(){
       finalMsg = tpl ? tpl.message : '';
     }
 
-    finalMsg += FOOTER_MSG; // Anexa obrigatório
+    finalMsg += FOOTER_MSG;
 
     const dVal = document.getElementById('b_date').value;
     const tVal = document.getElementById('b_time').value;
     if(!dVal || !tVal) return toast('Defina data e horário de início.');
 
     const startDt = new Date(`${dVal}T${tVal}:00`);
-    const endDt = new Date(startDt.getTime() + (60 * 60 * 1000)); // +1 hora
+    const endDt = new Date(startDt.getTime() + (60 * 60 * 1000));
 
-    // Tela de confirmação
     document.getElementById('blastBody').innerHTML = `
       <div class="banner" style="background:#e4f3ec;border-color:var(--ok);color:var(--ok);margin-bottom:18px">
         Resumo do Disparo configurado com sucesso. Verifique antes de confirmar.
@@ -1127,34 +1140,47 @@ function openBlastModal(){
     btnNext.classList.remove('btn-primary');
     btnNext.classList.add('btn-coral');
     
-    // Ação Final
+    // Ação Final: Grava no Firestore para o Worker ler
     btnNext.onclick = async () => {
       btnNext.disabled = true;
       btnNext.textContent = "Agendando...";
 
-      // Geração da fila randômica de 1 hora
       const UMA_HORA_EM_MS = 60 * 60 * 1000;
       const temposUsados = new Set();
       
-      const fila = optInClients.map(c => {
-        let atraso;
-        do {
-          atraso = Math.floor(Math.random() * UMA_HORA_EM_MS);
-        } while (temposUsados.has(atraso));
-        temposUsados.add(atraso);
-        
-        return {
-          id: c.id,
-          telefone: c.phone,
-          horario: new Date(startDt.getTime() + atraso)
-        };
-      }).sort((a,b) => a.horario - b.horario);
+      try {
+        const batch = writeBatch(fs);
 
-      // Aqui os dados da `fila` seriam enviados pro Backend/Cronjob real
-      console.log('Fila gerada:', fila);
+        optInClients.forEach(c => {
+          let atraso;
+          do {
+            atraso = Math.floor(Math.random() * UMA_HORA_EM_MS);
+          } while (temposUsados.has(atraso));
+          temposUsados.add(atraso);
+          
+          const horarioEnvio = new Date(startDt.getTime() + atraso);
+          const docRef = doc(collection(fs, 'disparos_agendados'));
 
-      toast('Disparo agendado com sucesso!');
-      close();
+          batch.set(docRef, {
+            clienteId: c.id,
+            clienteNome: c.firstName,
+            telefone: c.phone,
+            mensagem: finalMsg,
+            imagemUrl: document.getElementById('b_img')?.value.trim() || '',
+            status: 'pendente', // pendente | enviado | erro
+            horarioAgendado: horarioEnvio.toISOString(),
+            criadoEm: serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+        toast(`${optInClients.length} mensagens agendadas no banco com sucesso!`);
+        close();
+      } catch(e) {
+        toast('Erro ao agendar disparos: ' + (e.code || e.message));
+        btnNext.disabled = false;
+        btnNext.textContent = "Realizar disparo";
+      }
     };
   };
 }
