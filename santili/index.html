@@ -219,6 +219,11 @@ tr:last-child td{border-bottom:none}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:11px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:100;opacity:0;transition:.25s;pointer-events:none}
 .toast.show{opacity:1;bottom:34px}
 
+/* --- MOBILE FIX --- */
+.mobile-bar{display:none;align-items:center;gap:12px;margin-bottom:14px}
+.mobile-bar button{width:40px;height:40px;border-radius:10px;background:var(--pine);display:grid;place-items:center}
+.mobile-bar svg{stroke:#fff;width:20px;height:20px}
+
 @media(max-width:860px){
   .app{grid-template-columns:1fr}
   .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:.2s;width:246px}
@@ -227,9 +232,6 @@ tr:last-child td{border-bottom:none}
   .grid-3,.grid-2,.row2{grid-template-columns:1fr}
   .mobile-bar{display:flex!important}
 }
-.mobile-bar{display:none;align-items:center;gap:12px;margin-bottom:14px}
-.mobile-bar button{width:40px;height:40px;border-radius:10px;background:var(--pine);display:grid;place-items:center}
-.mobile-bar svg{stroke:#fff;width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -242,11 +244,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, si
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ============================================================
-   Santili — gestão de atendimentos (podóloga · Nataly Rodrigues)
-   Backend: Firebase Auth (login) + Cloud Firestore (dados).
-   Login por número de WhatsApp: o número vira e-mail sintético
-   {numero}@santili.app no Firebase Auth. Papéis admin/funcionário
-   e proteção do token são garantidos pelas Security Rules.
+   Santili — gestão de atendimentos
    ============================================================ */
 
 const firebaseConfig = {
@@ -262,7 +260,6 @@ const auth=getAuth(app);
 const fs=getFirestore(app);
 const EMAIL_DOMAIN='@santili.app';
 
-/* ---------- ícones ---------- */
 const I = {
   logo:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M8 3v9a4 4 0 0 0 8 0V3"/><path d="M6 21h12"/></svg>',
   summary:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
@@ -297,19 +294,16 @@ function defaultSchedule(){
   return d;
 }
 function defaultConfig(){ return {activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true}; }
+const FOOTER_MSG = '\n\n(Se não quiser mais receber nossas mensagens responda cancelar)';
 
-/* carrega tudo do Firestore conforme o papel do usuário logado */
 async function loadAll(){
   DB={users:[],clients:[],services:[],templates:[],schedule:defaultSchedule(),config:defaultConfig()};
-  // clientes (equipe pode ler)
   const cs=await getDocs(collection(fs,'clientes'));
   cs.forEach(d=>{const x=d.data(); DB.clients.push({id:d.id,firstName:x.firstName||'',lastName:x.lastName||'',
     phone:x.phone||'',optIn:x.optIn!==false,lastService:x.lastService||'',services:x.services||[],
     appointments:x.appointments||[],flagged:!!x.flagged,createdAt:x.createdAt||0});});
-  // serviços
   const ss=await getDocs(collection(fs,'servicos'));
   ss.forEach(d=>{const n=d.data().nome; if(n && !DB.services.includes(n))DB.services.push(n);});
-  // agenda de trabalho
   try{ const g=await getDoc(doc(fs,'gestao','agenda'));
     if(g.exists() && Object.keys(g.data()||{}).length) DB.schedule=Object.assign(defaultSchedule(),g.data()); }catch(e){}
   if(SESSION.role==='admin'){
@@ -322,28 +316,23 @@ async function loadAll(){
     DB.users=[{id:SESSION.id,name:SESSION.name,whatsapp:SESSION.whatsapp,role:'funcionario'}];
   }
 }
-/* helpers de persistência por documento */
 const cliRef=id=>doc(fs,'clientes',id);
 function cliData(c){ return {firstName:c.firstName,lastName:c.lastName||'',phone:c.phone,
   nomeLower:((c.firstName||'')+' '+(c.lastName||'')).toLowerCase(),optIn:!!c.optIn,
   lastService:c.lastService||'',services:c.services||[],appointments:c.appointments||[],
   flagged:!!c.flagged,createdAt:c.createdAt||Date.now()}; }
 
-/* ---------- util ---------- */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function greeting(){ const h=new Date().getHours(); return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'; }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove('show'),2400); }
 
-/* DDDs válidos no Brasil */
 const DDD=new Set(['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99']);
-const DDD_PADRAO='79'; // Aracaju/SE
-
-/* normaliza telefone: 9 díg -> +79 ; 10/11 díg -> DDD já incluso */
+const DDD_PADRAO='79';
 function normPhone(raw){
   let d=String(raw||'').replace(/\D/g,'');
-  if(d.length===9) return DDD_PADRAO+d;                 // sem DDD -> Sergipe
-  if(d.length===10||d.length===11) return d;            // com DDD
+  if(d.length===9) return DDD_PADRAO+d;
+  if(d.length===10||d.length===11) return d;
   if(d.length>11) return d.slice(0,11);
   return d;
 }
@@ -351,7 +340,6 @@ function phoneValid(raw){ const d=normPhone(raw); return d.length>=10 && d.lengt
 function fmtPhone(d){ d=String(d||'').replace(/\D/g,''); if(d.length===11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
   if(d.length===10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`; return d; }
 
-/* filtro de nomes impróprios */
 const BADWORDS=['merda','porra','caralho','buceta','bosta','cu','cuzao','viado','viadinho','puta','putinha','puto','fdp','arrombado','corno','otario','babaca','desgraca','desgraça','vagabunda','vagabundo','piroca','xoxota','pinto','pau no cu','vsf','pqp','krl','filha da puta','filho da puta','escroto','imbecil','idiota','retardado','bicha','xereca','rola','punheta','gozar','peido','cacete','pentelho','safado','safada'];
 function nameIssue(name){
   const n=(name||'').trim();
@@ -364,21 +352,13 @@ function nameIssue(name){
 }
 function firstName(n){ return (n||'').trim().split(/\s+/)[0]||''; }
 
-/* ---------- sessão ---------- */
-let SESSION=null;               // usuário logado (em memória)
+let SESSION=null;
 let ROUTE='resumo';
 let sideOpen=false;
 
-/* ============================================================
-   MÓDULO WhAPI  (whapi.cloud) — isolado
-   Em produção, token e envio devem rodar no servidor.
-   Aqui: modo simulação (config.simulate) para não vazar token
-   nem quebrar no preview. Troque para false quando plugar backend.
-   ============================================================ */
 const WhAPI={
   async send(to,text){
     const cfg=DB.config;
-    // 1) proxy no servidor (recomendado): o token nunca chega ao navegador
     if(cfg.proxyUrl){
       try{
         const r=await fetch(cfg.proxyUrl,{method:'POST',headers:{'Content-Type':'application/json'},
@@ -386,12 +366,10 @@ const WhAPI={
         return {ok:r.ok,status:r.status,viaProxy:true};
       }catch(e){ return {ok:false,error:String(e)}; }
     }
-    // 2) simulação: nada é enviado de verdade
     if(cfg.simulate || !cfg.whapiToken){
       console.log('[WhAPI simulado] para',to,'\n',text);
       return {ok:true,simulated:true};
     }
-    // 3) chamada direta (apenas testes; expõe o token no navegador)
     try{
       const r=await fetch('https://gate.whapi.cloud/messages/text',{
         method:'POST',
@@ -401,7 +379,6 @@ const WhAPI={
       return {ok:r.ok,status:r.status};
     }catch(e){ return {ok:false,error:String(e)}; }
   },
-  // checa se o canal WhAPI está conectado
   async health(){
     const cfg=DB.config;
     if(cfg.proxyUrl){
@@ -417,9 +394,6 @@ const WhAPI={
   }
 };
 
-/* ============================================================
-   AUTENTICAÇÃO (Firebase Auth · número → e-mail sintético)
-   ============================================================ */
 function renderAuth(mode){
   const root=document.getElementById('root');
   const brand=`<div class="brand"><div class="mark">${I.logo}</div><div><b>Santili</b><span>gestão de atendimentos</span></div></div>`;
@@ -444,7 +418,6 @@ async function doLogin(){
   const btn=document.getElementById('l_go'); btn.disabled=true; btn.textContent='Entrando…';
   try{
     await signInWithEmailAndPassword(auth,email,pw);
-    // onAuthStateChanged cuida de carregar o perfil e abrir o app
   }catch(e){
     btn.disabled=false; btn.textContent='Entrar';
     amsg('WhatsApp ou senha incorretos.','err');
@@ -452,7 +425,6 @@ async function doLogin(){
 }
 async function logout(){ await signOut(auth); }
 
-/* observa o estado de login e conduz o app */
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ SESSION=null; renderAuth('login'); return; }
   try{
@@ -467,9 +439,6 @@ onAuthStateChanged(auth, async (user)=>{
   }
 });
 
-/* ============================================================
-   APP SHELL
-   ============================================================ */
 function renderApp(){
   const isAdmin=SESSION.role==='admin';
   const nav=[
@@ -515,12 +484,10 @@ function renderApp(){
   else if(ROUTE==='crm' && isAdmin) viewCRM(v);
 }
 
-/* ============================================================
-   RESUMO
-   ============================================================ */
 function viewResumo(v){
   const total=DB.clients.length;
   const optin=DB.clients.filter(c=>c.optIn).length;
+  const semOptin=total - optin;
   const active=DB.config.activeNumber;
   const isAdmin=SESSION.role==='admin';
   v.innerHTML=`
@@ -530,8 +497,8 @@ function viewResumo(v){
   </div></div>
 
   <div class="grid grid-3" style="margin-bottom:16px">
-    <div class="card stat"><div class="k">Clientes na base</div><div class="v">${total}</div>
-      <div class="sub">${optin} com opt-in para mensagens</div></div>
+    <div class="card stat"><div class="k">Clientes na base</div><div class="v" id="kpi_total">${total}</div>
+      <div class="sub"><b id="kpi_optin">${optin}</b> ativos para envio <br/> <span style="color:var(--err);font-size:11px" id="kpi_semoptin">${semOptin} opt-outs</span></div></div>
     <div class="card stat"><div class="k">Número ativo p/ disparo</div>
       <div class="v" style="font-size:24px;margin-top:14px">${active?fmtPhone(active):'—'}</div>
       <div class="sub">${DB.config.simulate?'<span class="pill gray"><span class="dot"></span> modo simulação</span>':'<span class="pill on"><span class="dot"></span> WhAPI ativo</span>'}</div></div>
@@ -545,12 +512,7 @@ function viewResumo(v){
       <span>Colunas: <b>nome</b> e <b>telefone</b> (primeiro nome + número). Data do último atendimento é opcional.</span></div>
     <input type="file" id="csvFile" accept=".csv,text/csv" class="hidden">
     <div id="csvReport"></div>
-    <div style="margin-top:12px;font-size:12.5px;color:var(--muted)">
-      Exemplo: <code>nome;telefone;ultimo_atendimento</code> — uma linha por cliente.
-      ${isAdmin?'Como admin, você pode incluir nomes sinalizados.':'Nomes impróprios são ignorados e reportados.'}
-    </div>
   </div>`;
-
   const drop=document.getElementById('drop'), file=document.getElementById('csvFile');
   drop.onclick=()=>file.click();
   drop.ondragover=e=>{e.preventDefault();drop.style.background='#f2effc';};
@@ -559,7 +521,6 @@ function viewResumo(v){
   file.onchange=e=>{if(e.target.files[0])handleCSV(e.target.files[0]);};
 }
 
-/* CSV parse simples (; ou ,) */
 function parseCSV(text){
   const lines=text.split(/\r?\n/).filter(l=>l.trim());
   if(!lines.length) return [];
@@ -594,7 +555,6 @@ async function handleCSV(f){
       lastService:r.data||'',services:[],appointments:[],flagged:!!issue,createdAt:Date.now()});
     added++;
   });
-  // grava em lotes de 400 (limite do batch é 500)
   try{
     for(let i=0;i<novos.length;i+=400){
       const chunk=novos.slice(i,i+400); const batch=writeBatch(fs);
@@ -602,22 +562,10 @@ async function handleCSV(f){
       await batch.commit();
       chunk.forEach(c=>DB.clients.push(c));
     }
-  }catch(e){ toast('Erro ao gravar no Firestore: '+(e.code||e.message)); return; }
-  const rep=document.getElementById('csvReport');
-  rep.innerHTML=`<div class="report">
-    <div class="rl ok"><span>Clientes cadastrados</span><b>${added}</b></div>
-    ${dup?`<div class="rl skip"><span>Ignorados (já existiam)</span><b>${dup}</b></div>`:''}
-    ${skipped.length?`<div class="rl skip"><span>Não cadastrados (nome/telefone inválido)</span><b>${skipped.length}</b></div>
-      <div class="rejected">${skipped.map(s=>`<div>• <b>${esc(s.nome||'(vazio)')}</b> — ${s.motivo}</div>`).join('')}</div>`:''}
-  </div>`;
-  toast(added+' cliente(s) adicionado(s)');
-  // atualiza os KPIs sem sair da tela
-  const kpi=document.querySelector('.stat .v'); if(kpi)kpi.textContent=DB.clients.length;
+  }catch(e){ toast('Erro ao gravar: '+(e.code||e.message)); return; }
+  viewResumo(document.getElementById('view')); // recarrega para atualizar KPIs
 }
 
-/* ============================================================
-   ATENDIMENTO — busca, criar/atualizar cliente
-   ============================================================ */
 let searchState={q:'',results:[]};
 function viewAtendimento(v){
   v.innerHTML=`
@@ -653,18 +601,14 @@ function doSearch(){
   }
   searchState.results=results;
 
-  // ícones de ação ao lado da busca
   let act='';
   const canAdd=(byPhone&&digits.length>=9)||(!byPhone&&q.length>=2);
   if(canAdd && results.length===0) act+=`<button class="icon-btn" id="addNew" title="Cadastrar cliente">${I.plus}</button>`;
-  if(!byPhone && q.length>=2){
-    if(results.length===1) act+=`<button class="icon-btn" id="updOne" title="Atualizar cadastro">${I.refresh}</button>`;
-  }
+  if(!byPhone && q.length>=2){ if(results.length===1) act+=`<button class="icon-btn" id="updOne" title="Atualizar cadastro">${I.refresh}</button>`; }
   actions.innerHTML=act;
   const an=document.getElementById('addNew'); if(an)an.onclick=()=>openClientModal(null,{seed:q,byPhone});
   const uo=document.getElementById('updOne'); if(uo)uo.onclick=()=>openClientModal(results[0]);
 
-  // lista de resultados
   if(results.length){
     box.innerHTML=`<div class="res-list">${results.map(c=>`
       <div class="res-item" data-id="${c.id}">
@@ -682,7 +626,6 @@ function doSearch(){
   }
 }
 
-/* ---------- modal do cliente ---------- */
 let clientTab='dados', calWeek=0, calExpanded=false, selDate=null, selTime='';
 function openClientModal(client, opts={}){
   const isNew=!client;
@@ -749,7 +692,6 @@ function renderClientTab(draft,isNew,isAdmin){
         <div><div class="t">Opt-in de mensagens</div><div class="d">Marcado: pode receber WhatsApp de marketing. Desmarcado: não recebe.</div></div>
       </div>
       ${draft.flagged?`<div class="banner" style="margin-top:14px">${I.warn}<div>Nome sinalizado por linguagem imprópria. ${isAdmin?'Como admin você pode manter.':''}</div></div>`:''}`;
-    // máscara de telefone dinâmica
     const fp=document.getElementById('f_phone');
     fp.oninput=()=>{ let d=fp.value.replace(/\D/g,'').slice(0,11); fp.dataset.raw=d; fp.value=d.length>9?fmtPhone(d.length===9?normPhone(d):d):(d.length<=9?d:fmtPhone(d)); if(d.length<=9)fp.value=d; };
   }
@@ -782,7 +724,7 @@ function renderClientTab(draft,isNew,isAdmin){
     document.getElementById('calExp').onclick=()=>{calExpanded=!calExpanded;renderClientTab(draft,isNew,isAdmin);};
     renderCalendar(draft);
   }
-  else{ // histórico
+  else{
     const aps=(draft.appointments||[]).slice().sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
     body.innerHTML=aps.length?`<div class="hist">${aps.map(a=>{
       const d=new Date(a.datetime);
@@ -818,7 +760,6 @@ async function addServiceFromInput(draft){
   inp.value=''; renderServiceChips(draft); toast('Serviço adicionado');
 }
 
-/* calendário: semana atual + navegação + ampliar (mês) */
 function startOfWeek(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
 function scheduleDayEnabled(date){
   const keys=['dom','seg','ter','qua','qui','sex','sab'];
@@ -850,7 +791,6 @@ function renderCalendar(draft){
       const isToday=d.getTime()===today.getTime(); const sel=selDate&&d.toDateString()===selDate;
       html+=`<div class="md ${sel?'sel':''} ${isToday?'today':''}" data-d="${d.toISOString()}">${dd}</div>`; }
     html+='</div>'; body.innerHTML=html;
-    // navegação por mês quando ampliado
     document.getElementById('calPrev').onclick=()=>{calWeek-=4;renderCalendar(draft);};
     document.getElementById('calNext').onclick=()=>{calWeek+=4;renderCalendar(draft);};
   }
@@ -883,7 +823,6 @@ function renderSchedLine(draft){
     draft.lastService=dt.toLocaleDateString('pt-BR')+(time?' '+time:'');
     toast('Agendamento adicionado — salve para confirmar');
     selDate=null; renderCalendar(draft);
-    // reflete no histórico se estiver aberto
   };
 }
 
@@ -894,7 +833,6 @@ async function saveClient(draft,isNew,isAdmin){
   const opt=document.getElementById('f_opt')?document.getElementById('f_opt').checked:draft.optIn;
   const lastServ=(document.getElementById('f_last_serv')?.value||draft.lastService||'').trim();
 
-  if(clientTab!=='dados'){ /* mantém valores do draft se salvou de outra aba */ }
   if(!first) { switchToDados(); return toastErr('Informe o primeiro nome.'); }
   const issue=nameIssue(first);
   if(issue && !isAdmin){ switchToDados(); return toastErr('Nome impróprio — apenas admin pode cadastrar.'); }
@@ -919,13 +857,9 @@ async function saveClient(draft,isNew,isAdmin){
   closeClientModal(); toast(isNew?'Cliente cadastrado':'Cadastro atualizado');
   if(ROUTE==='atendimento')doSearch();
 }
-function switchToDados(){ clientTab='dados'; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.t==='dados'));
-  const d=document.querySelector('.overlay'); }
+function switchToDados(){ clientTab='dados'; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.t==='dados')); }
 function toastErr(m){ toast('⚠ '+m); }
 
-/* ============================================================
-   GESTÃO — dias e horários de agendamento
-   ============================================================ */
 function viewGestao(v){
   const days=[['seg','Segunda'],['ter','Terça'],['qua','Quarta'],['qui','Quinta'],['sex','Sexta'],['sab','Sábado'],['dom','Domingo']];
   v.innerHTML=`
@@ -966,9 +900,6 @@ function viewGestao(v){
   };
 }
 
-/* ============================================================
-   CRM — templates de mensagem (somente admin)
-   ============================================================ */
 const TRIGGERS={
   '24h_antes':'24h antes do agendamento',
   'dia_agendamento':'No dia do agendamento',
@@ -979,20 +910,56 @@ const TRIGGERS={
   'aniversario':'Data especial / reativação'
 };
 const PLACEHOLDERS=['{nome}','{horario}','{data}','{servico}'];
+
 function viewCRM(v){
   v.innerHTML=`
-  <div class="pagehead"><div><h1>CRM · templates de mensagem</h1>
-    <div class="greet">Monte mensagens automáticas de lembrete e pós-atendimento.</div></div>
-    <button class="btn btn-coral" id="newTpl">${I.plus} Novo template</button>
+  <div class="pagehead"><div><h1>CRM · Comunicação</h1>
+    <div class="greet">Monte mensagens automáticas ou agende disparos em massa.</div></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-coral" id="openBlast">${I.send} Novo Disparo</button>
+      <button class="btn btn-ghost" id="newTpl">${I.plus} Novo template</button>
+    </div>
   </div>
-  <div class="banner">${I.warn}<div>O <b>disparo automático</b> no horário certo precisa de um agendador no servidor (cron) chamando a WhAPI. Aqui você monta, ativa e testa os templates; o envio programado entra quando plugar o backend.</div></div>
+  
+  <div class="row2" style="margin-bottom:18px;align-items:start;">
+    <div class="banner" style="margin-bottom:0">${I.warn}<div>O <b>disparo automático de templates</b> precisa de um agendador no servidor. Os disparos em massa feitos no botão azul são simulados e escalonados na janela de 1 hora no front-end.</div></div>
+    
+    <div class="card" style="padding:16px">
+      <h3 style="font-size:14px;margin-bottom:8px">Simulador de Cancelamento (Webhook)</h3>
+      <div style="display:flex;gap:8px">
+        <input id="simPhone" class="inp" placeholder="Telefone (ex: 79 99999-9999)" inputmode="numeric">
+        <button id="simBtn" class="btn btn-danger btn-sm">Simular 'cancelar'</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Testa o opt-out: Digite o celular de um cliente e simule que ele respondeu "cancelar".</div>
+    </div>
+  </div>
+
   <div id="tplList"></div>`;
   document.getElementById('newTpl').onclick=()=>openTemplateModal(null);
+  document.getElementById('openBlast').onclick=openBlastModal;
+  
+  document.getElementById('simBtn').onclick=async()=>{
+    const val = document.getElementById('simPhone').value;
+    if(!val) return;
+    const phone = normPhone(val);
+    const cli = DB.clients.find(c => c.phone === phone);
+    if(cli){
+      try{
+        await updateDoc(doc(fs, 'clientes', cli.id), { optIn: false });
+        cli.optIn = false;
+        toast(`Cancelado! ${cli.firstName} marcado como opt-out.`);
+        document.getElementById('simPhone').value = '';
+      }catch(e){ toast('Erro no banco: ' + e.message); }
+    }else{
+      toast('Nenhum cliente encontrado com esse telefone.');
+    }
+  };
+
   renderTemplates();
 }
 function renderTemplates(){
   const list=document.getElementById('tplList');
-  if(!DB.templates.length){ list.innerHTML=`<div class="card"><div class="empty">${I.crm}<div>Nenhum template ainda. Crie o primeiro lembrete de agendamento.</div></div></div>`; return; }
+  if(!DB.templates.length){ list.innerHTML=`<div class="card"><div class="empty">${I.crm}<div>Nenhum template ainda.</div></div></div>`; return; }
   list.innerHTML=DB.templates.map(t=>`
     <div class="tpl">
       <div class="tpl-top"><div class="nm">${esc(t.name)}</div>
@@ -1013,36 +980,29 @@ function previewMsg(m){ return (m||'').replace(/{nome}/g,'Maria').replace(/{hora
 
 function openTemplateModal(tpl){
   const isNew=!tpl;
-  const d=tpl?{...tpl}:{id:null,name:'',trigger:'24h_antes',message:'Olá {nome}! Passando para lembrar do seu atendimento amanhã às {horario}. Qualquer coisa, é só responder por aqui. 💚',active:true};
+  const d=tpl?{...tpl}:{id:null,name:'',trigger:'24h_antes',message:'Olá {nome}!',active:true};
   const ov=document.createElement('div'); ov.className='overlay';
   ov.innerHTML=`<div class="modal"><div class="modal-head"><h2>${isNew?'Novo template':'Editar template'}</h2><button class="close-x" id="tx">${I.x}</button></div>
     <div class="modal-body">
       <div class="field"><label>Nome do template</label><input id="t_name" class="inp" value="${esc(d.name)}" placeholder="Ex.: Lembrete véspera"></div>
       <div class="field"><label>Quando disparar</label><select id="t_trig" class="inp">${Object.entries(TRIGGERS).map(([k,l])=>`<option value="${k}" ${d.trigger===k?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="field"><label>Mensagem</label><textarea id="t_msg" class="inp" rows="5" style="resize:vertical">${esc(d.message)}</textarea>
-        <div class="ph-help">${PLACEHOLDERS.map(p=>`<span class="ph-tag" data-ph="${p}">${p}</span>`).join('')}</div>
-        <div class="hint">Clique num marcador para inserir. Ele será trocado pelos dados reais do cliente.</div></div>
-      <div class="field"><label>Prévia</label><div class="tpl-preview" id="t_prev">${esc(previewMsg(d.message))}</div></div>
+        <div class="ph-help">${PLACEHOLDERS.map(p=>`<span class="ph-tag" data-ph="${p}">${p}</span>`).join('')}</div></div>
+      <div class="field"><label>Prévia (com rodapé)</label><div class="tpl-preview" id="t_prev">${esc(previewMsg(d.message)+FOOTER_MSG)}</div></div>
       <div class="check"><input type="checkbox" id="t_active" ${d.active?'checked':''}><div><div class="t">Template ativo</div><div class="d">Só templates ativos são considerados no disparo.</div></div></div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost" id="tcancel">Cancelar</button>
-      <button class="btn btn-ghost" id="ttest">${I.send} Testar envio</button>
       <button class="btn btn-primary" id="tsave">${isNew?'Criar':'Salvar'}</button></div></div>`;
   document.body.appendChild(ov);
   ov.onclick=e=>{if(e.target===ov)ov.remove();};
   const close=()=>ov.remove();
   document.getElementById('tx').onclick=close; document.getElementById('tcancel').onclick=close;
   const msg=document.getElementById('t_msg'), prev=document.getElementById('t_prev');
-  msg.oninput=()=>prev.textContent=previewMsg(msg.value);
+  msg.oninput=()=>prev.textContent=previewMsg(msg.value)+FOOTER_MSG;
   ov.querySelectorAll('[data-ph]').forEach(p=>p.onclick=()=>{
     const ph=p.dataset.ph; const s=msg.selectionStart||msg.value.length;
-    msg.value=msg.value.slice(0,s)+ph+msg.value.slice(s); prev.textContent=previewMsg(msg.value); msg.focus();
+    msg.value=msg.value.slice(0,s)+ph+msg.value.slice(s); prev.textContent=previewMsg(msg.value)+FOOTER_MSG; msg.focus();
   });
-  document.getElementById('ttest').onclick=async()=>{
-    const num=DB.config.activeNumber; if(!num)return toast('Configure o número ativo primeiro');
-    const r=await WhAPI.send(num,previewMsg(msg.value));
-    toast(r.simulated?'Envio simulado — veja o console':(r.ok?'Enviado via WhAPI':'Falha no envio'));
-  };
   document.getElementById('tsave').onclick=async()=>{
     const name=document.getElementById('t_name').value.trim(); if(!name)return toast('Dê um nome ao template');
     d.name=name; d.trigger=document.getElementById('t_trig').value; d.message=msg.value; d.active=document.getElementById('t_active').checked;
@@ -1055,9 +1015,150 @@ function openTemplateModal(tpl){
   };
 }
 
-/* ============================================================
-   CONEXÃO WHATSAPP / WhAPI (admin)
-   ============================================================ */
+/* Modal e Lógica do Disparo em Massa */
+function openBlastModal(){
+  const optInClients = DB.clients.filter(c => c.optIn);
+  if(optInClients.length === 0){
+    return toast('Não há clientes com opt-in na base para realizar disparo.');
+  }
+
+  const now = new Date();
+  const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 30);
+  const minD = now.toISOString().split('T')[0];
+  const maxD = maxDate.toISOString().split('T')[0];
+
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal lg"><div class="modal-head"><h2>${I.send} Agendar Disparo de WhatsApp</h2><button class="close-x" id="bx">${I.x}</button></div>
+    <div class="modal-body" id="blastBody">
+      <div class="field"><label>Base de envio</label>
+        <div class="inp" style="background:#f5f3fd;border:none"><b>${optInClients.length}</b> clientes ativos (opt-in validado)</div>
+      </div>
+      
+      <div class="field"><label>O que enviar?</label>
+        <select id="b_source" class="inp">
+          <option value="new">📝 Criar nova mensagem agora</option>
+          ${DB.templates.map(t=>`<option value="${t.id}">📄 Template: ${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+
+      <div id="b_new_wrap">
+        <div class="field"><label>Mensagem (Suporta emojis 😀)</label>
+          <textarea id="b_msg" class="inp" rows="4" placeholder="Escreva sua campanha aqui..."></textarea>
+        </div>
+        <div class="field"><label>URL da Imagem (opcional)</label>
+          <input id="b_img" class="inp" placeholder="https://site.com/imagem.jpg">
+          <div class="hint">Adicione o link direto de uma imagem para acompanhar o texto.</div>
+        </div>
+      </div>
+
+      <div class="row2" style="margin-top:20px;border-top:1px solid var(--line);padding-top:16px">
+        <div class="field"><label>Data de Início</label>
+          <input type="date" id="b_date" class="inp" min="${minD}" max="${maxD}" value="${minD}">
+          <div class="hint">Até 30 dias a partir de hoje.</div>
+        </div>
+        <div class="field"><label>Horário de Início</label>
+          <input type="time" id="b_time" class="inp" value="14:00">
+          <div class="hint">As mensagens serão distribuídas por 1 hora após este início.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="bcancel">Cancelar</button>
+      <button class="btn btn-primary" id="bnext">Avançar para Revisão</button>
+    </div></div>`;
+  
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const close=()=>ov.remove();
+  document.getElementById('bx').onclick=close; document.getElementById('bcancel').onclick=close;
+
+  const bSource = document.getElementById('b_source');
+  const bNewWrap = document.getElementById('b_new_wrap');
+  
+  bSource.onchange = () => {
+    bNewWrap.style.display = bSource.value === 'new' ? 'block' : 'none';
+  };
+
+  document.getElementById('bnext').onclick = () => {
+    let finalMsg = '';
+    
+    if (bSource.value === 'new') {
+      finalMsg = document.getElementById('b_msg').value.trim();
+      if(!finalMsg) return toast('A mensagem não pode estar vazia.');
+    } else {
+      const tpl = DB.templates.find(t => t.id === bSource.value);
+      finalMsg = tpl ? tpl.message : '';
+    }
+
+    finalMsg += FOOTER_MSG; // Anexa obrigatório
+
+    const dVal = document.getElementById('b_date').value;
+    const tVal = document.getElementById('b_time').value;
+    if(!dVal || !tVal) return toast('Defina data e horário de início.');
+
+    const startDt = new Date(`${dVal}T${tVal}:00`);
+    const endDt = new Date(startDt.getTime() + (60 * 60 * 1000)); // +1 hora
+
+    // Tela de confirmação
+    document.getElementById('blastBody').innerHTML = `
+      <div class="banner" style="background:#e4f3ec;border-color:var(--ok);color:var(--ok);margin-bottom:18px">
+        Resumo do Disparo configurado com sucesso. Verifique antes de confirmar.
+      </div>
+      <div class="grid grid-2">
+        <div class="card" style="padding:16px;background:#f5f3fd;border:none">
+          <div style="font-size:12.5px;color:var(--muted)">Impacto</div>
+          <div style="font-size:24px;font-weight:700;color:var(--pine)">${optInClients.length} clientes</div>
+        </div>
+        <div class="card" style="padding:16px;background:#f5f3fd;border:none">
+          <div style="font-size:12.5px;color:var(--muted)">Período de Disparo (Distribuição Randômica)</div>
+          <div style="font-size:14px;font-weight:600;margin-top:4px">Início: ${startDt.toLocaleString('pt-BR')}</div>
+          <div style="font-size:14px;font-weight:600">Término: ${endDt.toLocaleString('pt-BR')}</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:16px"><label>Visualização da Mensagem</label>
+        <div class="tpl-preview">${esc(finalMsg)}</div>
+      </div>
+    `;
+
+    document.getElementById('bcancel').textContent = "Voltar / Cancelar";
+    const btnNext = document.getElementById('bnext');
+    btnNext.textContent = "Realizar disparo";
+    btnNext.classList.remove('btn-primary');
+    btnNext.classList.add('btn-coral');
+    
+    // Ação Final
+    btnNext.onclick = async () => {
+      btnNext.disabled = true;
+      btnNext.textContent = "Agendando...";
+
+      // Geração da fila randômica de 1 hora
+      const UMA_HORA_EM_MS = 60 * 60 * 1000;
+      const temposUsados = new Set();
+      
+      const fila = optInClients.map(c => {
+        let atraso;
+        do {
+          atraso = Math.floor(Math.random() * UMA_HORA_EM_MS);
+        } while (temposUsados.has(atraso));
+        temposUsados.add(atraso);
+        
+        return {
+          id: c.id,
+          telefone: c.phone,
+          horario: new Date(startDt.getTime() + atraso)
+        };
+      }).sort((a,b) => a.horario - b.horario);
+
+      // Aqui os dados da `fila` seriam enviados pro Backend/Cronjob real
+      console.log('Fila gerada:', fila);
+
+      toast('Disparo agendado com sucesso!');
+      close();
+    };
+  };
+}
+
 function openWhatsAppModal(){
   const cfg=DB.config;
   const ov=document.createElement('div'); ov.className='overlay';
@@ -1111,16 +1212,13 @@ function openWhatsAppModal(){
     DB.config.whapiToken=document.getElementById('w_token').value.trim();
     DB.config.activeNumber=num?normPhone(num):'';
     DB.config.simulate=document.getElementById('w_sim').checked;
-    if(!DB.config.whapiToken && !DB.config.proxyUrl) DB.config.simulate=true; // sem credencial não sai da simulação
+    if(!DB.config.whapiToken && !DB.config.proxyUrl) DB.config.simulate=true;
     try{ await setDoc(doc(fs,'config','app'),{numeroAtivo:DB.config.activeNumber,proxyUrl:DB.config.proxyUrl,whapiToken:DB.config.whapiToken,simulate:DB.config.simulate},{merge:true}); }
     catch(e){ return toast('Erro ao salvar: '+(e.code||e.message)); }
     close(); renderApp(); toast('Conexão WhatsApp salva');
   };
 }
 
-/* ============================================================
-   GESTOR DE USUÁRIOS (admin)
-   ============================================================ */
 function openUsersModal(){
   const ov=document.createElement('div'); ov.className='overlay';
   ov.innerHTML=`<div class="modal"><div class="modal-head"><h2>Gestor de usuários</h2><button class="close-x" id="ux">${I.x}</button></div>
@@ -1167,7 +1265,6 @@ function openUsersModal(){
     const wa=normPhone(waRaw);
     if(DB.users.some(u=>u.whatsapp===wa))return toast('Já existe usuário com esse número');
     const btn=document.getElementById('u_add'); btn.disabled=true; btn.textContent='Criando…';
-    // cria a conta no Auth via app secundário, sem derrubar a sessão do admin
     let sec=null;
     try{
       sec=initializeApp(firebaseConfig,'sec-'+Date.now());
@@ -1189,10 +1286,6 @@ function openUsersModal(){
   };
 }
 
-/* ============================================================
-   BOOT — o observador onAuthStateChanged (acima) já conduz:
-   sem login → tela de entrada; com login → carrega e abre o app.
-   ============================================================ */
 </script>
 </body>
 </html>
