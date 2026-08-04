@@ -236,12 +236,31 @@ tr:last-child td{border-bottom:none}
 <div id="root"></div>
 <div id="toast" class="toast"></div>
 
-<script>
+<script type="module">
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 /* ============================================================
-   Santili — gestão de atendimentos (MVP · podóloga Nataly Rodrigues)
-   HTML único. Persistência via window.storage (Claude) com
-   fallback em memória. WhatsApp via módulo WhAPI (modo simulação).
+   Santili — gestão de atendimentos (podóloga · Nataly Rodrigues)
+   Backend: Firebase Auth (login) + Cloud Firestore (dados).
+   Login por número de WhatsApp: o número vira e-mail sintético
+   {numero}@santili.app no Firebase Auth. Papéis admin/funcionário
+   e proteção do token são garantidos pelas Security Rules.
    ============================================================ */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAHlisWhLp3vhQR0VtptAlxa_f39IjRq3o",
+  authDomain: "santili.firebaseapp.com",
+  projectId: "santili",
+  storageBucket: "santili.firebasestorage.app",
+  messagingSenderId: "703145353606",
+  appId: "1:703145353606:web:33b188e87ed4d8fa58cc07"
+};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const fs=getFirestore(app);
+const EMAIL_DOMAIN='@santili.app';
 
 /* ---------- ícones ---------- */
 const I = {
@@ -266,10 +285,8 @@ const I = {
   wa:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-11.7 7.7L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 8.5c.4 2.2 2.8 4.6 5 5l1.2-1.4-1.7-.9-.9.7c-.7-.3-1.6-1.2-1.9-1.9l.7-.9-.9-1.7z"/></svg>'
 };
 
-/* ---------- storage ---------- */
-const KEY='pododb_v1'; let DB=null; const mem={};
-async function sGet(k){ if(window.storage&&window.storage.get){try{const r=await window.storage.get(k);return r?r.value:null;}catch(e){return mem[k]??null;}} return mem[k]??null; }
-async function sSet(k,v){ if(window.storage&&window.storage.set){try{await window.storage.set(k,v);return;}catch(e){}} mem[k]=v; }
+/* ---------- estado / cache ---------- */
+let DB={users:[],clients:[],services:[],templates:[],schedule:null,config:null};
 
 function defaultSchedule(){
   const d={};
@@ -279,24 +296,42 @@ function defaultSchedule(){
   });
   return d;
 }
-function defaultDB(){ return {users:[],clients:[],services:[],templates:[],schedule:defaultSchedule(),
-  config:{activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true}}; }
+function defaultConfig(){ return {activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true}; }
 
-async function loadDB(){
-  const raw=await sGet(KEY);
-  if(raw){ try{DB=JSON.parse(raw);}catch(e){DB=null;} }
-  if(!DB) DB=defaultDB();
-  DB.users=DB.users||[]; DB.clients=DB.clients||[]; DB.services=DB.services||[];
-  DB.templates=DB.templates||[]; DB.schedule=DB.schedule||defaultSchedule();
-  DB.config=Object.assign({activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true},DB.config||{});
+/* carrega tudo do Firestore conforme o papel do usuário logado */
+async function loadAll(){
+  DB={users:[],clients:[],services:[],templates:[],schedule:defaultSchedule(),config:defaultConfig()};
+  // clientes (equipe pode ler)
+  const cs=await getDocs(collection(fs,'clientes'));
+  cs.forEach(d=>{const x=d.data(); DB.clients.push({id:d.id,firstName:x.firstName||'',lastName:x.lastName||'',
+    phone:x.phone||'',optIn:x.optIn!==false,lastService:x.lastService||'',services:x.services||[],
+    appointments:x.appointments||[],flagged:!!x.flagged,createdAt:x.createdAt||0});});
+  // serviços
+  const ss=await getDocs(collection(fs,'servicos'));
+  ss.forEach(d=>{const n=d.data().nome; if(n && !DB.services.includes(n))DB.services.push(n);});
+  // agenda de trabalho
+  try{ const g=await getDoc(doc(fs,'gestao','agenda'));
+    if(g.exists() && Object.keys(g.data()||{}).length) DB.schedule=Object.assign(defaultSchedule(),g.data()); }catch(e){}
+  if(SESSION.role==='admin'){
+    const ts=await getDocs(collection(fs,'templates'));
+    ts.forEach(d=>DB.templates.push({id:d.id,...d.data()}));
+    try{ const cf=await getDoc(doc(fs,'config','app')); if(cf.exists()){const x=cf.data(); DB.config={activeNumber:x.numeroAtivo||'',proxyUrl:x.proxyUrl||'',whapiToken:x.whapiToken||'',simulate:x.simulate!==false};} }catch(e){}
+    const us=await getDocs(collection(fs,'usuarios'));
+    us.forEach(d=>{const x=d.data(); DB.users.push({id:d.id,name:x.nome||'',whatsapp:x.whatsapp||'',role:x.papel||'funcionario'});});
+  }else{
+    DB.users=[{id:SESSION.id,name:SESSION.name,whatsapp:SESSION.whatsapp,role:'funcionario'}];
+  }
 }
-async function saveDB(){ await sSet(KEY,JSON.stringify(DB)); }
+/* helpers de persistência por documento */
+const cliRef=id=>doc(fs,'clientes',id);
+function cliData(c){ return {firstName:c.firstName,lastName:c.lastName||'',phone:c.phone,
+  nomeLower:((c.firstName||'')+' '+(c.lastName||'')).toLowerCase(),optIn:!!c.optIn,
+  lastService:c.lastService||'',services:c.services||[],appointments:c.appointments||[],
+  flagged:!!c.flagged,createdAt:c.createdAt||Date.now()}; }
 
 /* ---------- util ---------- */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-async function hashPass(p){ try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));
-  return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(e){return'plain:'+p;} }
 function greeting(){ const h=new Date().getHours(); return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'; }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove('show'),2400); }
 
@@ -379,56 +414,15 @@ const WhAPI={
       const j=await r.json().catch(()=>({}));
       return {ok:r.ok,status:r.status,text:(j&&j.status&&(j.status.text||j.status.code||''))||''};
     }catch(e){ return {ok:false,error:String(e)}; }
-  },
-  // gera e "envia" código de validação para o número do gestor
-  async sendCode(number){
-    const code=(''+Math.floor(100000+Math.random()*900000));
-    await this.send(number,`Santili · código de validação: ${code}. Válido por 10 min.`);
-    return code;
   }
 };
 
 /* ============================================================
-   AUTENTICAÇÃO
+   AUTENTICAÇÃO (Firebase Auth · número → e-mail sintético)
    ============================================================ */
-let pendingCode=null, pendingUser=null;
-
 function renderAuth(mode){
   const root=document.getElementById('root');
-  const first=DB.users.length===0;
-  mode=mode||(first?'setup':'login');
   const brand=`<div class="brand"><div class="mark">${I.logo}</div><div><b>Santili</b><span>gestão de atendimentos</span></div></div>`;
-
-  if(mode==='setup'){
-    root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
-      <h2>Criar acesso do gestor</h2>
-      <div class="sub">Primeiro acesso · esta conta será administradora</div>
-      <div id="amsg"></div>
-      <div class="field"><label>Nome do gestor</label><input id="s_name" class="inp" placeholder="Nataly Rodrigues"></div>
-      <div class="field"><label>WhatsApp do gestor</label><input id="s_wa" class="inp" placeholder="79 99999-9999" inputmode="numeric">
-        <div class="hint">Usado para login e validação. Sem DDD, assumimos 79.</div></div>
-      <div class="field"><label>Senha</label><input id="s_pw" class="inp" type="password" placeholder="letras e números">
-        <div class="hint">Mínimo 6 caracteres, com pelo menos uma letra e um número.</div></div>
-      <button class="btn btn-primary btn-block" id="s_go">Criar acesso</button>
-    </div></div>`;
-    document.getElementById('s_go').onclick=doSetup;
-    return;
-  }
-  if(mode==='validate'){
-    root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
-      <h2>Validar WhatsApp</h2>
-      <div class="sub">Enviamos um código para ${fmtPhone(pendingUser.whatsapp)}</div>
-      <div id="amsg"></div>
-      ${DB.config.simulate?`<div class="msg info">Modo simulação: seu código é <b>${pendingCode}</b></div>`:''}
-      <div class="field"><label>Código de 6 dígitos</label><input id="v_code" class="inp" inputmode="numeric" maxlength="6" placeholder="000000"></div>
-      <button class="btn btn-primary btn-block" id="v_go">Confirmar</button>
-      <div class="link-row"><button id="v_skip">Validar depois</button></div>
-    </div></div>`;
-    document.getElementById('v_go').onclick=doValidate;
-    document.getElementById('v_skip').onclick=()=>{ SESSION=pendingUser; ROUTE='resumo'; renderApp(); };
-    return;
-  }
-  // login
   root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
     <h2>${greeting()}</h2>
     <div class="sub">Entre para gerenciar seus atendimentos</div>
@@ -442,33 +436,36 @@ function renderAuth(mode){
 }
 function amsg(t,cls){ const e=document.getElementById('amsg'); if(e)e.innerHTML=`<div class="msg ${cls}">${t}</div>`; }
 
-async function doSetup(){
-  const name=document.getElementById('s_name').value.trim();
-  const waRaw=document.getElementById('s_wa').value;
-  const pw=document.getElementById('s_pw').value;
-  if(!name) return amsg('Informe o nome do gestor.','err');
-  if(!phoneValid(waRaw)) return amsg('WhatsApp inválido. Confira o número.','err');
-  if(pw.length<6||!/[a-zA-Z]/.test(pw)||!/[0-9]/.test(pw)) return amsg('Senha precisa de 6+ caracteres com letras e números.','err');
-  const wa=normPhone(waRaw);
-  const u={id:uid(),name,whatsapp:wa,pass:await hashPass(pw),role:'admin',validated:false,createdAt:Date.now()};
-  DB.users.push(u); DB.config.activeNumber=DB.config.activeNumber||wa; await saveDB();
-  pendingUser=u; pendingCode=await WhAPI.sendCode(wa);
-  renderAuth('validate');
-}
-async function doValidate(){
-  const c=document.getElementById('v_code').value.trim();
-  if(c!==pendingCode) return amsg('Código incorreto.','err');
-  pendingUser.validated=true; await saveDB();
-  SESSION=pendingUser; ROUTE='resumo'; renderApp();
-}
 async function doLogin(){
-  const wa=normPhone(document.getElementById('l_wa').value);
-  const pw=await hashPass(document.getElementById('l_pw').value);
-  const u=DB.users.find(x=>x.whatsapp===wa&&x.pass===pw);
-  if(!u) return amsg('WhatsApp ou senha incorretos.','err');
-  SESSION=u; ROUTE='resumo'; renderApp();
+  const waRaw=document.getElementById('l_wa').value;
+  const pw=document.getElementById('l_pw').value;
+  if(!phoneValid(waRaw)) return amsg('Informe um WhatsApp válido.','err');
+  const email=normPhone(waRaw)+EMAIL_DOMAIN;
+  const btn=document.getElementById('l_go'); btn.disabled=true; btn.textContent='Entrando…';
+  try{
+    await signInWithEmailAndPassword(auth,email,pw);
+    // onAuthStateChanged cuida de carregar o perfil e abrir o app
+  }catch(e){
+    btn.disabled=false; btn.textContent='Entrar';
+    amsg('WhatsApp ou senha incorretos.','err');
+  }
 }
-function logout(){ SESSION=null; renderAuth('login'); }
+async function logout(){ await signOut(auth); }
+
+/* observa o estado de login e conduz o app */
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){ SESSION=null; renderAuth('login'); return; }
+  try{
+    const snap=await getDoc(doc(fs,'usuarios',user.uid));
+    if(!snap.exists()){ await signOut(auth); renderAuth('login'); amsg('Conta sem perfil no sistema. Fale com o administrador.','err'); return; }
+    const d=snap.data();
+    SESSION={id:user.uid,name:d.nome||'',whatsapp:d.whatsapp||'',role:(d.papel==='admin'?'admin':'funcionario')};
+    await loadAll();
+    ROUTE='resumo'; renderApp();
+  }catch(e){
+    renderAuth('login'); amsg('Não foi possível carregar seus dados. Confira as regras do Firestore e tente de novo.','err');
+  }
+});
 
 /* ============================================================
    APP SHELL
@@ -585,6 +582,7 @@ async function handleCSV(f){
   const isAdmin=SESSION.role==='admin';
   let added=0,skipped=[],dup=0;
   const seen=new Set(DB.clients.map(c=>c.phone));
+  const novos=[];
   rows.forEach(r=>{
     const issue=nameIssue(r.nome);
     if(!phoneValid(r.fone)){ skipped.push({nome:r.nome,motivo:'telefone inválido'}); return; }
@@ -592,11 +590,19 @@ async function handleCSV(f){
     if(issue && !isAdmin){ skipped.push({nome:r.nome,motivo:issue}); return; }
     if(seen.has(phone)){ dup++; return; }
     seen.add(phone);
-    DB.clients.push({id:uid(),firstName:firstName(r.nome),lastName:'',phone,optIn:true,
+    novos.push({firstName:firstName(r.nome),lastName:'',phone,optIn:true,
       lastService:r.data||'',services:[],appointments:[],flagged:!!issue,createdAt:Date.now()});
     added++;
   });
-  await saveDB();
+  // grava em lotes de 400 (limite do batch é 500)
+  try{
+    for(let i=0;i<novos.length;i+=400){
+      const chunk=novos.slice(i,i+400); const batch=writeBatch(fs);
+      chunk.forEach(c=>{ const ref=doc(collection(fs,'clientes')); c.id=ref.id; batch.set(ref,cliData(c)); });
+      await batch.commit();
+      chunk.forEach(c=>DB.clients.push(c));
+    }
+  }catch(e){ toast('Erro ao gravar no Firestore: '+(e.code||e.message)); return; }
   const rep=document.getElementById('csvReport');
   rep.innerHTML=`<div class="report">
     <div class="rl ok"><span>Clientes cadastrados</span><b>${added}</b></div>
@@ -713,7 +719,8 @@ function openClientModal(client, opts={}){
 
   const dc=document.getElementById('delClient');
   if(dc)dc.onclick=async()=>{ if(!confirm('Excluir este cliente? Ação não pode ser desfeita.'))return;
-    DB.clients=DB.clients.filter(c=>c.id!==draft.id); await saveDB(); closeClientModal(); renderApp(); toast('Cliente excluído'); };
+    try{ await deleteDoc(cliRef(draft.id)); }catch(e){ return toast('Erro ao excluir: '+(e.code||e.message)); }
+    DB.clients=DB.clients.filter(c=>c.id!==draft.id); closeClientModal(); renderApp(); toast('Cliente excluído'); };
 
   document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
     clientTab=b.dataset.t; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b)); renderClientTab(draft,isNew,isAdmin);
@@ -803,7 +810,10 @@ function renderServiceChips(draft){
 async function addServiceFromInput(draft){
   const inp=document.getElementById('svcSearch'); const name=inp.value.trim();
   if(!name)return;
-  if(!DB.services.some(s=>s.toLowerCase()===name.toLowerCase())){ DB.services.push(name); await saveDB(); }
+  if(!DB.services.some(s=>s.toLowerCase()===name.toLowerCase())){
+    try{ await addDoc(collection(fs,'servicos'),{nome:name,criadoEm:serverTimestamp()}); DB.services.push(name); }
+    catch(e){ return toast('Erro ao salvar serviço: '+(e.code||e.message)); }
+  }
   if(!draft.services.includes(name))draft.services.push(name);
   inp.value=''; renderServiceChips(draft); toast('Serviço adicionado');
 }
@@ -896,9 +906,17 @@ async function saveClient(draft,isNew,isAdmin){
   draft.firstName=first; draft.lastName=lastN; draft.phone=phone; draft.optIn=opt;
   draft.lastService=lastServ; draft.flagged=!!issue;
 
-  if(isNew){ draft.id=uid(); draft.createdAt=Date.now(); DB.clients.push(draft); }
-  else{ const i=DB.clients.findIndex(c=>c.id===draft.id); if(i>=0)DB.clients[i]=draft; }
-  await saveDB(); closeClientModal(); toast(isNew?'Cliente cadastrado':'Cadastro atualizado');
+  try{
+    if(isNew){
+      draft.createdAt=Date.now();
+      const ref=await addDoc(collection(fs,'clientes'),cliData(draft));
+      draft.id=ref.id; DB.clients.push(draft);
+    }else{
+      await setDoc(cliRef(draft.id),cliData(draft));
+      const i=DB.clients.findIndex(c=>c.id===draft.id); if(i>=0)DB.clients[i]=draft;
+    }
+  }catch(e){ return toastErr('Erro ao salvar: '+(e.code||e.message)); }
+  closeClientModal(); toast(isNew?'Cliente cadastrado':'Cadastro atualizado');
   if(ROUTE==='atendimento')doSearch();
 }
 function switchToDados(){ clientTab='dados'; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.t==='dados'));
@@ -943,7 +961,8 @@ function viewGestao(v){
   });
   document.getElementById('saveSched').onclick=async()=>{
     v.querySelectorAll('[data-f]').forEach(inp=>{const[k,f]=inp.dataset.f.split('.');DB.schedule[k][f]=inp.value;});
-    await saveDB(); toast('Agenda salva');
+    try{ await setDoc(doc(fs,'gestao','agenda'),DB.schedule); toast('Agenda salva'); }
+    catch(e){ toast('Erro ao salvar: '+(e.code||e.message)); }
   };
 }
 
@@ -986,9 +1005,9 @@ function renderTemplates(){
       <span class="tpl-trigger">${TRIGGERS[t.trigger]||t.trigger}</span>
       <div class="tpl-preview">${esc(previewMsg(t.message))}</div>
     </div>`).join('');
-  list.querySelectorAll('[data-tog]').forEach(b=>b.onclick=async()=>{const t=DB.templates.find(x=>x.id===b.dataset.tog);t.active=!t.active;await saveDB();renderTemplates();});
+  list.querySelectorAll('[data-tog]').forEach(b=>b.onclick=async()=>{const t=DB.templates.find(x=>x.id===b.dataset.tog);t.active=!t.active;try{await updateDoc(doc(fs,'templates',t.id),{active:t.active});}catch(e){toast('Erro: '+(e.code||e.message));}renderTemplates();});
   list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openTemplateModal(DB.templates.find(x=>x.id===b.dataset.edit)));
-  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Excluir template?'))return;DB.templates=DB.templates.filter(x=>x.id!==b.dataset.del);await saveDB();renderTemplates();});
+  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Excluir template?'))return;try{await deleteDoc(doc(fs,'templates',b.dataset.del));}catch(e){return toast('Erro: '+(e.code||e.message));}DB.templates=DB.templates.filter(x=>x.id!==b.dataset.del);renderTemplates();});
 }
 function previewMsg(m){ return (m||'').replace(/{nome}/g,'Maria').replace(/{horario}/g,'14:30').replace(/{data}/g,'12/08').replace(/{servico}/g,'limpeza de pés'); }
 
@@ -1027,8 +1046,12 @@ function openTemplateModal(tpl){
   document.getElementById('tsave').onclick=async()=>{
     const name=document.getElementById('t_name').value.trim(); if(!name)return toast('Dê um nome ao template');
     d.name=name; d.trigger=document.getElementById('t_trig').value; d.message=msg.value; d.active=document.getElementById('t_active').checked;
-    if(isNew){d.id=uid();DB.templates.push(d);}else{const i=DB.templates.findIndex(x=>x.id===d.id);DB.templates[i]=d;}
-    await saveDB(); close(); renderTemplates(); toast('Template salvo');
+    const payload={name:d.name,trigger:d.trigger,message:d.message,active:d.active};
+    try{
+      if(isNew){ const ref=await addDoc(collection(fs,'templates'),payload); d.id=ref.id; DB.templates.push(d); }
+      else{ await setDoc(doc(fs,'templates',d.id),payload); const i=DB.templates.findIndex(x=>x.id===d.id); DB.templates[i]=d; }
+    }catch(e){ return toast('Erro ao salvar: '+(e.code||e.message)); }
+    close(); renderTemplates(); toast('Template salvo');
   };
 }
 
@@ -1089,7 +1112,9 @@ function openWhatsAppModal(){
     DB.config.activeNumber=num?normPhone(num):'';
     DB.config.simulate=document.getElementById('w_sim').checked;
     if(!DB.config.whapiToken && !DB.config.proxyUrl) DB.config.simulate=true; // sem credencial não sai da simulação
-    await saveDB(); close(); renderApp(); toast('Conexão WhatsApp salva');
+    try{ await setDoc(doc(fs,'config','app'),{numeroAtivo:DB.config.activeNumber,proxyUrl:DB.config.proxyUrl,whapiToken:DB.config.whapiToken,simulate:DB.config.simulate},{merge:true}); }
+    catch(e){ return toast('Erro ao salvar: '+(e.code||e.message)); }
+    close(); renderApp(); toast('Conexão WhatsApp salva');
   };
 }
 
@@ -1126,8 +1151,9 @@ function openUsersModal(){
       <td><span class="pill ${u.role==='admin'?'on':'gray'}"><span class="dot"></span>${u.role==='admin'?'Admin':'Funcionário'}</span></td>
       <td class="tbl-actions">${u.id!==SESSION.id?`<button class="icon-btn danger" data-del="${u.id}">${I.trash}</button>`:'<span style="font-size:11px;color:var(--muted)">você</span>'}</td></tr>`).join('');
     document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
-      if(!confirm('Remover este usuário?'))return;
-      DB.users=DB.users.filter(x=>x.id!==b.dataset.del); await saveDB(); drawUsers();
+      if(!confirm('Remover o acesso deste usuário? O perfil é apagado e ele perde acesso ao sistema.'))return;
+      try{ await deleteDoc(doc(fs,'usuarios',b.dataset.del)); }catch(e){ return toast('Erro: '+(e.code||e.message)); }
+      DB.users=DB.users.filter(x=>x.id!==b.dataset.del); drawUsers();
     });
   }
   drawUsers();
@@ -1140,16 +1166,33 @@ function openUsersModal(){
     if(pw.length<6||!/[a-zA-Z]/.test(pw)||!/[0-9]/.test(pw))return toast('Senha: 6+ com letras e números');
     const wa=normPhone(waRaw);
     if(DB.users.some(u=>u.whatsapp===wa))return toast('Já existe usuário com esse número');
-    DB.users.push({id:uid(),name,whatsapp:wa,pass:await hashPass(pw),role,validated:false,createdAt:Date.now()});
-    await saveDB(); drawUsers(); toast('Usuário adicionado');
-    document.getElementById('u_name').value='';document.getElementById('u_wa').value='';document.getElementById('u_pw').value='';
+    const btn=document.getElementById('u_add'); btn.disabled=true; btn.textContent='Criando…';
+    // cria a conta no Auth via app secundário, sem derrubar a sessão do admin
+    let sec=null;
+    try{
+      sec=initializeApp(firebaseConfig,'sec-'+Date.now());
+      const sAuth=getAuth(sec);
+      const cred=await createUserWithEmailAndPassword(sAuth,wa+EMAIL_DOMAIN,pw);
+      const newUid=cred.user.uid;
+      await signOut(sAuth);
+      await setDoc(doc(fs,'usuarios',newUid),{nome:name,whatsapp:wa,papel:role,validado:true,criadoEm:serverTimestamp()});
+      DB.users.push({id:newUid,name,whatsapp:wa,role});
+      drawUsers(); toast('Usuário criado');
+      document.getElementById('u_name').value='';document.getElementById('u_wa').value='';document.getElementById('u_pw').value='';
+    }catch(e){
+      const msg=e.code==='auth/email-already-in-use'?'Já existe conta com esse número':(e.code||e.message);
+      toast('Erro: '+msg);
+    }finally{
+      btn.disabled=false; btn.innerHTML=I.plus+' Adicionar';
+      if(sec){ try{ await deleteApp(sec); }catch(e){} }
+    }
   };
 }
 
 /* ============================================================
-   BOOT
+   BOOT — o observador onAuthStateChanged (acima) já conduz:
+   sem login → tela de entrada; com login → carrega e abre o app.
    ============================================================ */
-(async function(){ await loadDB(); renderAuth(); })();
 </script>
 </body>
 </html>
