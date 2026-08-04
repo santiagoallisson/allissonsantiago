@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Santili · Gestão de atendimentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1c1b3a; --pine:#4b3fc4; --pine-d:#3a2fa0; --mint:#7b6ef0; --sage:#b6adf2;
+  --coral:#3b82f6; --coral-d:#2563eb; --sand:#f2f1fb; --paper:#ffffff; --line:#e4e1f2;
+  --muted:#6b6a86; --ok:#2f8f6b; --warn:#c9852b; --err:#c0503c; --shadow:0 6px 24px rgba(28,27,58,.09);
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--sand);color:var(--ink);font-size:15px;line-height:1.5}
+h1,h2,h3,.display{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.01em}
+button{font-family:inherit;cursor:pointer;border:none;background:none;font-size:14px}
+input,select,textarea{font-family:inherit;font-size:14px}
+a{color:var(--pine)}
+.hidden{display:none!important}
+
+/* ---------- Auth ---------- */
+.auth-wrap{min-height:100%;display:grid;place-items:center;padding:24px;
+  background:radial-gradient(120% 120% at 0% 0%, #4b3fc4 0%, #1c1b3a 60%, #14122e 100%)}
+.auth-card{width:100%;max-width:420px;background:var(--paper);border-radius:20px;padding:34px 30px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:11px;margin-bottom:24px}
+.brand .mark{width:38px;height:38px;border-radius:11px;background:var(--pine);display:grid;place-items:center;color:#fff}
+.brand b{font-family:'Bricolage Grotesque';font-size:20px;font-weight:800;letter-spacing:-.02em}
+.brand span{font-size:12px;color:var(--muted);display:block;line-height:1;margin-top:2px}
+.auth-card h2{font-size:22px;margin-bottom:4px}
+.auth-card .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--pine-d);margin-bottom:6px}
+.field .hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+.inp{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;background:#fbfaff;transition:.15s}
+.inp:focus{outline:none;border-color:var(--mint);background:#fff;box-shadow:0 0 0 3px rgba(123,110,240,.2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;transition:.15s}
+.btn-primary{background:var(--pine);color:#fff}
+.btn-primary:hover{background:var(--pine-d)}
+.btn-coral{background:var(--coral);color:#fff}
+.btn-coral:hover{background:var(--coral-d)}
+.btn-ghost{background:#eeecfb;color:var(--pine-d)}
+.btn-ghost:hover{background:#e2ebe8}
+.btn-danger{background:#fbeae6;color:var(--err)}
+.btn-danger:hover{background:#f6d9d2}
+.btn-block{width:100%}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:9px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.msg{font-size:13px;padding:9px 12px;border-radius:9px;margin-bottom:12px}
+.msg.err{background:#fbeae6;color:var(--err)}
+.msg.ok{background:#e4f3ec;color:var(--ok)}
+.msg.info{background:#eaf1f5;color:#2b6b86}
+.link-row{text-align:center;margin-top:16px;font-size:13px;color:var(--muted)}
+.link-row button{color:var(--pine);font-weight:600}
+
+/* ---------- App shell ---------- */
+.app{display:grid;grid-template-columns:246px 1fr;min-height:100vh}
+.side{background:var(--pine);color:#e7e4fa;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.side .brand{padding:20px 20px 14px;margin:0}
+.side .brand b{color:#fff}.side .brand span{color:#b6adf2}
+.side .brand .mark{background:#5347b8}
+.nav{padding:6px 12px;flex:1;overflow:auto}
+.nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9a91e0;padding:14px 12px 6px}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:#d8d3f5;font-size:14px;font-weight:500;cursor:pointer;transition:.12s;margin-bottom:2px}
+.nav a:hover{background:#5a4fc4;color:#fff}
+.nav a.active{background:#fff;color:var(--pine-d);font-weight:600}
+.nav a.active svg{stroke:var(--pine)}
+.nav a svg{width:18px;height:18px;stroke:#b6adf2;flex-shrink:0}
+.nav a:hover svg{stroke:#fff}
+.side-foot{padding:12px;border-top:1px solid #5347b8}
+.side-foot .who{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--coral);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex-shrink:0}
+.who .n{font-size:13px;font-weight:600;color:#fff;line-height:1.2}
+.who .r{font-size:11px;color:#b6adf2}
+.side-foot .btn{width:100%;margin-top:8px;background:#5347b8;color:#e7e4fa}
+.side-foot .btn:hover{background:#6156c4}
+
+.main{padding:28px 34px;max-width:1120px}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;gap:16px;flex-wrap:wrap}
+.pagehead h1{font-size:26px;font-weight:700}
+.pagehead .greet{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* cards / grid */
+.grid{display:grid;gap:16px}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.card h3{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.stat .k{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.stat .v{font-family:'Bricolage Grotesque';font-size:38px;font-weight:800;line-height:1;margin-top:8px;color:var(--pine-d)}
+.stat .sub{font-size:12.5px;color:var(--muted);margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px}
+.pill.on{background:#e4f3ec;color:var(--ok)}
+.pill.off{background:#fbeae6;color:var(--err)}
+.pill.gray{background:#eeecfb;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+/* tables */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid #efedf8;font-size:14px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.tbl-actions{display:flex;gap:6px;justify-content:flex-end}
+.icon-btn{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:#eeecfb}
+.icon-btn:hover{background:#e2def5}
+.icon-btn svg{width:16px;height:16px;stroke:var(--pine-d)}
+.icon-btn.danger{background:#fbeae6}.icon-btn.danger svg{stroke:var(--err)}
+
+/* search */
+.search-box{position:relative;max-width:560px}
+.search-box .inp{padding-left:42px;font-size:15px;padding-top:13px;padding-bottom:13px}
+.search-box .si{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted)}
+.search-actions{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px}
+.res-list{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.res-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #efedf8;cursor:pointer}
+.res-item:last-child{border-bottom:none}
+.res-item:hover{background:#f5f3fd}
+.res-item .nm{font-weight:600}.res-item .ph{font-size:12.5px;color:var(--muted)}
+.res-empty{padding:18px 14px;color:var(--muted);font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(28,27,58,.5);display:grid;place-items:center;padding:24px;z-index:50}
+.modal{background:var(--paper);border-radius:18px;width:100%;max-width:640px;max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.modal.lg{max-width:760px}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:2}
+.modal-head h2{font-size:19px}
+.modal-body{padding:22px 24px}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:#fff}
+.close-x{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#efedf8}
+.close-x:hover{background:#e2def5}
+
+/* tabs */
+.tabs{display:flex;gap:4px;background:#efedf8;padding:4px;border-radius:11px;margin-bottom:18px}
+.tabs button{flex:1;padding:9px;border-radius:8px;font-weight:600;color:var(--muted);font-size:13px}
+.tabs button.active{background:#fff;color:var(--pine-d);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.check{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;cursor:pointer;background:#fbfaff}
+.check input{width:18px;height:18px;accent-color:var(--pine)}
+.check .t{font-weight:600;font-size:13.5px}.check .d{font-size:12px;color:var(--muted)}
+
+/* chips (services) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:#eeecfb;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid transparent}
+.chip:hover{background:#e2ebe8}
+.chip.sel{background:var(--pine);color:#fff}
+.chip.add{background:#fff;border:1.5px dashed var(--sage);color:var(--pine)}
+
+/* calendar */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head .lbl{font-weight:600;font-size:13.5px}
+.cal-nav{display:flex;gap:6px;align-items:center}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{border:1.5px solid var(--line);border-radius:10px;padding:8px 4px;text-align:center;cursor:pointer;background:#fbfaff;transition:.12s}
+.day:hover{border-color:var(--mint);background:#fff}
+.day.sel{background:var(--pine);color:#fff;border-color:var(--pine)}
+.day.today{border-color:var(--coral)}
+.day.off{opacity:.4;cursor:not-allowed}
+.day .dn{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;opacity:.7}
+.day .dd{font-family:'Bricolage Grotesque';font-size:18px;font-weight:700;margin-top:2px}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
+.month .mh{font-size:10px;text-transform:uppercase;color:var(--muted);text-align:center;padding:4px 0}
+.month .md{aspect-ratio:1;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;font-size:13px;cursor:pointer;background:#fbfaff}
+.month .md:hover{border-color:var(--mint)}
+.month .md.sel{background:var(--pine);color:#fff}
+.month .md.today{border-color:var(--coral)}
+.month .md.blank{border:none;background:none;cursor:default}
+.sched-line{display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px;background:#f5f3fd;border-radius:11px}
+.sched-line .t{font-weight:600;font-size:14px}
+
+/* history */
+.hist{display:flex;flex-direction:column;gap:8px}
+.hist-item{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:11px}
+.hist-item .d{width:44px;height:44px;border-radius:10px;background:#eeecfb;display:grid;place-items:center;flex-shrink:0}
+.hist-item .d .dd{font-family:'Bricolage Grotesque';font-weight:800;font-size:16px;color:var(--pine-d);line-height:1}
+.hist-item .d .mm{font-size:9px;text-transform:uppercase;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:28px 12px;font-size:13.5px}
+.empty svg{width:34px;height:34px;stroke:var(--sage);margin-bottom:8px}
+
+/* gestão schedule */
+.gday{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid #efedf8}
+.gday:last-child{border-bottom:none}
+.gday .name{font-weight:600;display:flex;align-items:center;gap:9px}
+.time-in{width:100px}
+.tog{position:relative;width:42px;height:24px;background:#d0cbe8;border-radius:20px;transition:.15s;flex-shrink:0}
+.tog.on{background:var(--pine)}
+.tog::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.15s}
+.tog.on::after{left:21px}
+.gslots{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px}
+.gslots .lb{color:var(--muted);font-size:12px}
+
+/* templates */
+.tpl{border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:12px;background:#fff}
+.tpl-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.tpl-top .nm{font-weight:700;font-size:15px}
+.tpl-trigger{font-size:12px;color:var(--pine-d);background:#eeecfb;padding:3px 9px;border-radius:6px;font-weight:600;display:inline-block;margin-bottom:8px}
+.tpl-preview{background:#f0eefb;border-left:3px solid var(--mint);padding:11px 13px;border-radius:0 8px 8px 0;font-size:13.5px;white-space:pre-wrap;color:#33306b}
+.ph-help{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ph-tag{font-size:11.5px;background:#eeecfb;color:var(--coral-d);padding:3px 8px;border-radius:6px;cursor:pointer;font-weight:600;border:1px solid #d0cbe8}
+
+/* csv */
+.drop{border:2px dashed var(--sage);border-radius:14px;padding:26px;text-align:center;background:#fbfaff;cursor:pointer}
+.drop:hover{background:#f2effc;border-color:var(--mint)}
+.drop svg{width:32px;height:32px;stroke:var(--pine);margin-bottom:8px}
+.drop b{font-size:14.5px}.drop span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+.report{margin-top:14px}
+.report .rl{display:flex;justify-content:space-between;padding:8px 12px;border-radius:8px;font-size:13.5px;margin-bottom:6px}
+.report .rl.ok{background:#e4f3ec;color:var(--ok)}
+.report .rl.skip{background:#fdf3e5;color:var(--warn)}
+.rejected{margin-top:8px;font-size:12.5px;color:var(--muted);max-height:140px;overflow:auto}
+.rejected div{padding:4px 0;border-bottom:1px dashed #eee}
+
+.banner{background:#fff8ef;border:1px solid #f0dfc4;border-radius:12px;padding:12px 16px;font-size:13px;color:#8a6a2f;display:flex;gap:10px;align-items:flex-start;margin-bottom:18px}
+.banner svg{width:18px;height:18px;stroke:#c9852b;flex-shrink:0;margin-top:1px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:11px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:100;opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1;bottom:34px}
+
+@media(max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:.2s;width:246px}
+  .side.open{transform:none}
+  .main{padding:18px}
+  .grid-3,.grid-2,.row2{grid-template-columns:1fr}
+  .mobile-bar{display:flex!important}
+}
+.mobile-bar{display:none;align-items:center;gap:12px;margin-bottom:14px}
+.mobile-bar button{width:40px;height:40px;border-radius:10px;background:var(--pine);display:grid;place-items:center}
+.mobile-bar svg{stroke:#fff;width:20px;height:20px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ============================================================
+   Santili — gestão de atendimentos (MVP · podóloga Nataly Rodrigues)
+   HTML único. Persistência via window.storage (Claude) com
+   fallback em memória. WhatsApp via módulo WhAPI (modo simulação).
+   ============================================================ */
+
+/* ---------- ícones ---------- */
+const I = {
+  logo:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M8 3v9a4 4 0 0 0 8 0V3"/><path d="M6 21h12"/></svg>',
+  summary:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+  atend:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  gestao:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  crm:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  refresh:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="#5a5248" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  menu:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
+  empty:'<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  send:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-11.7 7.7L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5z"/><path d="M8.5 8.5c.4 2.2 2.8 4.6 5 5l1.2-1.4-1.7-.9-.9.7c-.7-.3-1.6-1.2-1.9-1.9l.7-.9-.9-1.7z"/></svg>'
+};
+
+/* ---------- storage ---------- */
+const KEY='pododb_v1'; let DB=null; const mem={};
+async function sGet(k){ if(window.storage&&window.storage.get){try{const r=await window.storage.get(k);return r?r.value:null;}catch(e){return mem[k]??null;}} return mem[k]??null; }
+async function sSet(k,v){ if(window.storage&&window.storage.set){try{await window.storage.set(k,v);return;}catch(e){}} mem[k]=v; }
+
+function defaultSchedule(){
+  const d={};
+  ['seg','ter','qua','qui','sex','sab','dom'].forEach(k=>{
+    const work=!['sab','dom'].includes(k);
+    d[k]={enabled:work,start:'08:00',end:'18:00',lunch:work,lunchStart:'12:00',lunchEnd:'13:00'};
+  });
+  return d;
+}
+function defaultDB(){ return {users:[],clients:[],services:[],templates:[],schedule:defaultSchedule(),
+  config:{activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true}}; }
+
+async function loadDB(){
+  const raw=await sGet(KEY);
+  if(raw){ try{DB=JSON.parse(raw);}catch(e){DB=null;} }
+  if(!DB) DB=defaultDB();
+  DB.users=DB.users||[]; DB.clients=DB.clients||[]; DB.services=DB.services||[];
+  DB.templates=DB.templates||[]; DB.schedule=DB.schedule||defaultSchedule();
+  DB.config=Object.assign({activeNumber:'',whapiToken:'',proxyUrl:'',simulate:true},DB.config||{});
+}
+async function saveDB(){ await sSet(KEY,JSON.stringify(DB)); }
+
+/* ---------- util ---------- */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function hashPass(p){ try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));
+  return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(e){return'plain:'+p;} }
+function greeting(){ const h=new Date().getHours(); return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'; }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* DDDs válidos no Brasil */
+const DDD=new Set(['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99']);
+const DDD_PADRAO='79'; // Aracaju/SE
+
+/* normaliza telefone: 9 díg -> +79 ; 10/11 díg -> DDD já incluso */
+function normPhone(raw){
+  let d=String(raw||'').replace(/\D/g,'');
+  if(d.length===9) return DDD_PADRAO+d;                 // sem DDD -> Sergipe
+  if(d.length===10||d.length===11) return d;            // com DDD
+  if(d.length>11) return d.slice(0,11);
+  return d;
+}
+function phoneValid(raw){ const d=normPhone(raw); return d.length>=10 && d.length<=11 && DDD.has(d.slice(0,2)); }
+function fmtPhone(d){ d=String(d||'').replace(/\D/g,''); if(d.length===11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+  if(d.length===10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`; return d; }
+
+/* filtro de nomes impróprios */
+const BADWORDS=['merda','porra','caralho','buceta','bosta','cu','cuzao','viado','viadinho','puta','putinha','puto','fdp','arrombado','corno','otario','babaca','desgraca','desgraça','vagabunda','vagabundo','piroca','xoxota','pinto','pau no cu','vsf','pqp','krl','filha da puta','filho da puta','escroto','imbecil','idiota','retardado','bicha','xereca','rola','punheta','gozar','peido','cacete','pentelho','safado','safada'];
+function nameIssue(name){
+  const n=(name||'').trim();
+  if(!n) return 'nome vazio';
+  const norm=n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  for(const w of BADWORDS){ const re=new RegExp('(^|[^a-z])'+w.replace(/ /g,'[ ]?').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([^a-z]|$)'); if(re.test(norm)) return 'linguagem imprópria'; }
+  if(/^\d+$/.test(n)) return 'nome numérico';
+  if(n.length<2) return 'nome muito curto';
+  return null;
+}
+function firstName(n){ return (n||'').trim().split(/\s+/)[0]||''; }
+
+/* ---------- sessão ---------- */
+let SESSION=null;               // usuário logado (em memória)
+let ROUTE='resumo';
+let sideOpen=false;
+
+/* ============================================================
+   MÓDULO WhAPI  (whapi.cloud) — isolado
+   Em produção, token e envio devem rodar no servidor.
+   Aqui: modo simulação (config.simulate) para não vazar token
+   nem quebrar no preview. Troque para false quando plugar backend.
+   ============================================================ */
+const WhAPI={
+  async send(to,text){
+    const cfg=DB.config;
+    // 1) proxy no servidor (recomendado): o token nunca chega ao navegador
+    if(cfg.proxyUrl){
+      try{
+        const r=await fetch(cfg.proxyUrl,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({to:to.replace(/\D/g,''),body:text})});
+        return {ok:r.ok,status:r.status,viaProxy:true};
+      }catch(e){ return {ok:false,error:String(e)}; }
+    }
+    // 2) simulação: nada é enviado de verdade
+    if(cfg.simulate || !cfg.whapiToken){
+      console.log('[WhAPI simulado] para',to,'\n',text);
+      return {ok:true,simulated:true};
+    }
+    // 3) chamada direta (apenas testes; expõe o token no navegador)
+    try{
+      const r=await fetch('https://gate.whapi.cloud/messages/text',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.whapiToken},
+        body:JSON.stringify({to:to.replace(/\D/g,''),body:text})
+      });
+      return {ok:r.ok,status:r.status};
+    }catch(e){ return {ok:false,error:String(e)}; }
+  },
+  // checa se o canal WhAPI está conectado
+  async health(){
+    const cfg=DB.config;
+    if(cfg.proxyUrl){
+      try{ const r=await fetch(cfg.proxyUrl,{method:'GET'}); return {ok:r.ok,status:r.status,viaProxy:true}; }
+      catch(e){ return {ok:false,error:String(e)}; }
+    }
+    if(cfg.simulate||!cfg.whapiToken) return {ok:true,simulated:true};
+    try{
+      const r=await fetch('https://gate.whapi.cloud/health?wakeup=true',{headers:{'Authorization':'Bearer '+cfg.whapiToken}});
+      const j=await r.json().catch(()=>({}));
+      return {ok:r.ok,status:r.status,text:(j&&j.status&&(j.status.text||j.status.code||''))||''};
+    }catch(e){ return {ok:false,error:String(e)}; }
+  },
+  // gera e "envia" código de validação para o número do gestor
+  async sendCode(number){
+    const code=(''+Math.floor(100000+Math.random()*900000));
+    await this.send(number,`Santili · código de validação: ${code}. Válido por 10 min.`);
+    return code;
+  }
+};
+
+/* ============================================================
+   AUTENTICAÇÃO
+   ============================================================ */
+let pendingCode=null, pendingUser=null;
+
+function renderAuth(mode){
+  const root=document.getElementById('root');
+  const first=DB.users.length===0;
+  mode=mode||(first?'setup':'login');
+  const brand=`<div class="brand"><div class="mark">${I.logo}</div><div><b>Santili</b><span>gestão de atendimentos</span></div></div>`;
+
+  if(mode==='setup'){
+    root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
+      <h2>Criar acesso do gestor</h2>
+      <div class="sub">Primeiro acesso · esta conta será administradora</div>
+      <div id="amsg"></div>
+      <div class="field"><label>Nome do gestor</label><input id="s_name" class="inp" placeholder="Nataly Rodrigues"></div>
+      <div class="field"><label>WhatsApp do gestor</label><input id="s_wa" class="inp" placeholder="79 99999-9999" inputmode="numeric">
+        <div class="hint">Usado para login e validação. Sem DDD, assumimos 79.</div></div>
+      <div class="field"><label>Senha</label><input id="s_pw" class="inp" type="password" placeholder="letras e números">
+        <div class="hint">Mínimo 6 caracteres, com pelo menos uma letra e um número.</div></div>
+      <button class="btn btn-primary btn-block" id="s_go">Criar acesso</button>
+    </div></div>`;
+    document.getElementById('s_go').onclick=doSetup;
+    return;
+  }
+  if(mode==='validate'){
+    root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
+      <h2>Validar WhatsApp</h2>
+      <div class="sub">Enviamos um código para ${fmtPhone(pendingUser.whatsapp)}</div>
+      <div id="amsg"></div>
+      ${DB.config.simulate?`<div class="msg info">Modo simulação: seu código é <b>${pendingCode}</b></div>`:''}
+      <div class="field"><label>Código de 6 dígitos</label><input id="v_code" class="inp" inputmode="numeric" maxlength="6" placeholder="000000"></div>
+      <button class="btn btn-primary btn-block" id="v_go">Confirmar</button>
+      <div class="link-row"><button id="v_skip">Validar depois</button></div>
+    </div></div>`;
+    document.getElementById('v_go').onclick=doValidate;
+    document.getElementById('v_skip').onclick=()=>{ SESSION=pendingUser; ROUTE='resumo'; renderApp(); };
+    return;
+  }
+  // login
+  root.innerHTML=`<div class="auth-wrap"><div class="auth-card">${brand}
+    <h2>${greeting()}</h2>
+    <div class="sub">Entre para gerenciar seus atendimentos</div>
+    <div id="amsg"></div>
+    <div class="field"><label>WhatsApp</label><input id="l_wa" class="inp" placeholder="79 99999-9999" inputmode="numeric"></div>
+    <div class="field"><label>Senha</label><input id="l_pw" class="inp" type="password" placeholder="sua senha"></div>
+    <button class="btn btn-primary btn-block" id="l_go">Entrar</button>
+  </div></div>`;
+  document.getElementById('l_go').onclick=doLogin;
+  document.getElementById('l_pw').onkeydown=e=>{if(e.key==='Enter')doLogin();};
+}
+function amsg(t,cls){ const e=document.getElementById('amsg'); if(e)e.innerHTML=`<div class="msg ${cls}">${t}</div>`; }
+
+async function doSetup(){
+  const name=document.getElementById('s_name').value.trim();
+  const waRaw=document.getElementById('s_wa').value;
+  const pw=document.getElementById('s_pw').value;
+  if(!name) return amsg('Informe o nome do gestor.','err');
+  if(!phoneValid(waRaw)) return amsg('WhatsApp inválido. Confira o número.','err');
+  if(pw.length<6||!/[a-zA-Z]/.test(pw)||!/[0-9]/.test(pw)) return amsg('Senha precisa de 6+ caracteres com letras e números.','err');
+  const wa=normPhone(waRaw);
+  const u={id:uid(),name,whatsapp:wa,pass:await hashPass(pw),role:'admin',validated:false,createdAt:Date.now()};
+  DB.users.push(u); DB.config.activeNumber=DB.config.activeNumber||wa; await saveDB();
+  pendingUser=u; pendingCode=await WhAPI.sendCode(wa);
+  renderAuth('validate');
+}
+async function doValidate(){
+  const c=document.getElementById('v_code').value.trim();
+  if(c!==pendingCode) return amsg('Código incorreto.','err');
+  pendingUser.validated=true; await saveDB();
+  SESSION=pendingUser; ROUTE='resumo'; renderApp();
+}
+async function doLogin(){
+  const wa=normPhone(document.getElementById('l_wa').value);
+  const pw=await hashPass(document.getElementById('l_pw').value);
+  const u=DB.users.find(x=>x.whatsapp===wa&&x.pass===pw);
+  if(!u) return amsg('WhatsApp ou senha incorretos.','err');
+  SESSION=u; ROUTE='resumo'; renderApp();
+}
+function logout(){ SESSION=null; renderAuth('login'); }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+function renderApp(){
+  const isAdmin=SESSION.role==='admin';
+  const nav=[
+    {id:'resumo',label:'Resumo',ic:I.summary},
+    {id:'atendimento',label:'Atendimento',ic:I.atend},
+    {id:'gestao',label:'Gestão',ic:I.gestao},
+  ];
+  if(isAdmin) nav.push({id:'crm',label:'CRM',ic:I.crm});
+  const navHtml=nav.map(n=>`<a data-r="${n.id}" class="${ROUTE===n.id?'active':''}">${n.ic}<span>${n.label}</span></a>`).join('');
+
+  document.getElementById('root').innerHTML=`
+  <div class="app">
+    <aside class="side ${sideOpen?'open':''}" id="side">
+      <div class="brand"><div class="mark">${I.logo}</div><div><b>Santili</b><span>gestão de atendimentos</span></div></div>
+      <nav class="nav">
+        <div class="grp">Menu</div>
+        ${navHtml}
+      </nav>
+      <div class="side-foot">
+        <div class="who"><div class="avatar">${esc(SESSION.name[0]||'?').toUpperCase()}</div>
+          <div><div class="n">${esc(SESSION.name)}</div><div class="r">${SESSION.role==='admin'?'Administrador':'Funcionário'}</div></div></div>
+        ${isAdmin?`<button class="btn" id="openWa">${I.wa} Conexão WhatsApp</button>`:''}
+        ${isAdmin?`<button class="btn" id="openUsers">${I.users} Gestor de usuários</button>`:''}
+        <button class="btn" id="logout">${I.logout} Sair</button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="mobile-bar"><button id="burger">${I.menu}</button><b class="display" style="font-size:18px">Santili</b></div>
+      <div id="view"></div>
+    </main>
+  </div>`;
+
+  document.querySelectorAll('.nav a').forEach(a=>a.onclick=()=>{ROUTE=a.dataset.r;sideOpen=false;renderApp();});
+  document.getElementById('logout').onclick=logout;
+  const ou=document.getElementById('openUsers'); if(ou)ou.onclick=openUsersModal;
+  const ow=document.getElementById('openWa'); if(ow)ow.onclick=openWhatsAppModal;
+  const bg=document.getElementById('burger'); if(bg)bg.onclick=()=>{sideOpen=!sideOpen;document.getElementById('side').classList.toggle('open');};
+
+  const v=document.getElementById('view');
+  if(ROUTE==='resumo') viewResumo(v);
+  else if(ROUTE==='atendimento') viewAtendimento(v);
+  else if(ROUTE==='gestao') viewGestao(v);
+  else if(ROUTE==='crm' && isAdmin) viewCRM(v);
+}
+
+/* ============================================================
+   RESUMO
+   ============================================================ */
+function viewResumo(v){
+  const total=DB.clients.length;
+  const optin=DB.clients.filter(c=>c.optIn).length;
+  const active=DB.config.activeNumber;
+  const isAdmin=SESSION.role==='admin';
+  v.innerHTML=`
+  <div class="pagehead"><div>
+    <h1>${greeting()}, ${esc(firstName(SESSION.name))}</h1>
+    <div class="greet">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
+  </div></div>
+
+  <div class="grid grid-3" style="margin-bottom:16px">
+    <div class="card stat"><div class="k">Clientes na base</div><div class="v">${total}</div>
+      <div class="sub">${optin} com opt-in para mensagens</div></div>
+    <div class="card stat"><div class="k">Número ativo p/ disparo</div>
+      <div class="v" style="font-size:24px;margin-top:14px">${active?fmtPhone(active):'—'}</div>
+      <div class="sub">${DB.config.simulate?'<span class="pill gray"><span class="dot"></span> modo simulação</span>':'<span class="pill on"><span class="dot"></span> WhAPI ativo</span>'}</div></div>
+    <div class="card stat"><div class="k">Serviços cadastrados</div><div class="v">${DB.services.length}</div>
+      <div class="sub">${DB.templates.filter(t=>t.active).length} templates de CRM ativos</div></div>
+  </div>
+
+  <div class="card">
+    <h3>${I.upload} Carga de clientes via CSV</h3>
+    <div class="drop" id="drop">${I.upload}<b>Solte um arquivo .csv ou clique para selecionar</b>
+      <span>Colunas: <b>nome</b> e <b>telefone</b> (primeiro nome + número). Data do último atendimento é opcional.</span></div>
+    <input type="file" id="csvFile" accept=".csv,text/csv" class="hidden">
+    <div id="csvReport"></div>
+    <div style="margin-top:12px;font-size:12.5px;color:var(--muted)">
+      Exemplo: <code>nome;telefone;ultimo_atendimento</code> — uma linha por cliente.
+      ${isAdmin?'Como admin, você pode incluir nomes sinalizados.':'Nomes impróprios são ignorados e reportados.'}
+    </div>
+  </div>`;
+
+  const drop=document.getElementById('drop'), file=document.getElementById('csvFile');
+  drop.onclick=()=>file.click();
+  drop.ondragover=e=>{e.preventDefault();drop.style.background='#f2effc';};
+  drop.ondragleave=()=>drop.style.background='';
+  drop.ondrop=e=>{e.preventDefault();drop.style.background='';if(e.dataTransfer.files[0])handleCSV(e.dataTransfer.files[0]);};
+  file.onchange=e=>{if(e.target.files[0])handleCSV(e.target.files[0]);};
+}
+
+/* CSV parse simples (; ou ,) */
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return [];
+  const sep=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?';':',';
+  let header=lines[0].split(sep).map(h=>h.trim().toLowerCase());
+  let hasHeader=header.some(h=>['nome','name','telefone','fone','celular','contato','whatsapp'].includes(h));
+  let rows=hasHeader?lines.slice(1):lines;
+  const idxNome=hasHeader?header.findIndex(h=>['nome','name'].includes(h)):0;
+  const idxFone=hasHeader?header.findIndex(h=>['telefone','fone','celular','contato','whatsapp'].includes(h)):1;
+  const idxData=hasHeader?header.findIndex(h=>h.includes('ultimo')||h.includes('atend')||h.includes('data')):2;
+  return rows.map(l=>{const p=l.split(sep);return{
+    nome:(p[idxNome]||'').trim(),
+    fone:(p[idxFone>=0?idxFone:1]||'').trim(),
+    data:(idxData>=0?(p[idxData]||'').trim():'')
+  };});
+}
+async function handleCSV(f){
+  const text=await f.text();
+  const rows=parseCSV(text);
+  const isAdmin=SESSION.role==='admin';
+  let added=0,skipped=[],dup=0;
+  const seen=new Set(DB.clients.map(c=>c.phone));
+  rows.forEach(r=>{
+    const issue=nameIssue(r.nome);
+    if(!phoneValid(r.fone)){ skipped.push({nome:r.nome,motivo:'telefone inválido'}); return; }
+    const phone=normPhone(r.fone);
+    if(issue && !isAdmin){ skipped.push({nome:r.nome,motivo:issue}); return; }
+    if(seen.has(phone)){ dup++; return; }
+    seen.add(phone);
+    DB.clients.push({id:uid(),firstName:firstName(r.nome),lastName:'',phone,optIn:true,
+      lastService:r.data||'',services:[],appointments:[],flagged:!!issue,createdAt:Date.now()});
+    added++;
+  });
+  await saveDB();
+  const rep=document.getElementById('csvReport');
+  rep.innerHTML=`<div class="report">
+    <div class="rl ok"><span>Clientes cadastrados</span><b>${added}</b></div>
+    ${dup?`<div class="rl skip"><span>Ignorados (já existiam)</span><b>${dup}</b></div>`:''}
+    ${skipped.length?`<div class="rl skip"><span>Não cadastrados (nome/telefone inválido)</span><b>${skipped.length}</b></div>
+      <div class="rejected">${skipped.map(s=>`<div>• <b>${esc(s.nome||'(vazio)')}</b> — ${s.motivo}</div>`).join('')}</div>`:''}
+  </div>`;
+  toast(added+' cliente(s) adicionado(s)');
+  // atualiza os KPIs sem sair da tela
+  const kpi=document.querySelector('.stat .v'); if(kpi)kpi.textContent=DB.clients.length;
+}
+
+/* ============================================================
+   ATENDIMENTO — busca, criar/atualizar cliente
+   ============================================================ */
+let searchState={q:'',results:[]};
+function viewAtendimento(v){
+  v.innerHTML=`
+  <div class="pagehead"><div><h1>Atendimento</h1>
+    <div class="greet">Busque por nome ou telefone. Se não existir, cadastre na hora.</div></div></div>
+  <div class="search-box">
+    <span class="si">${I.search}</span>
+    <input id="q" class="inp" placeholder="Digite um nome ou telefone…" autocomplete="off">
+    <div class="search-actions" id="qActions"></div>
+  </div>
+  <div id="results"></div>`;
+  const q=document.getElementById('q');
+  q.value=searchState.q; q.focus();
+  q.oninput=()=>{searchState.q=q.value;doSearch();};
+  doSearch();
+}
+function isPhoneQuery(q){ return /^\d{4,}$/.test(q.replace(/\D/g,''))&&/^[\d\s()-]+$/.test(q); }
+function doSearch(){
+  const q=searchState.q.trim();
+  const box=document.getElementById('results');
+  const actions=document.getElementById('qActions');
+  if(!box)return;
+  if(!q){ box.innerHTML=`<div class="card" style="margin-top:14px"><div class="empty">${I.search}<div>Comece a digitar para buscar na base de ${DB.clients.length} cliente(s).</div></div></div>`; actions.innerHTML=''; return; }
+
+  const digits=q.replace(/\D/g,'');
+  const byPhone=isPhoneQuery(q);
+  let results;
+  if(byPhone){
+    results=DB.clients.filter(c=>c.phone.includes(digits)||normPhone(digits)===c.phone);
+  }else{
+    const nq=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    results=DB.clients.filter(c=>((c.firstName+' '+(c.lastName||'')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')).includes(nq));
+  }
+  searchState.results=results;
+
+  // ícones de ação ao lado da busca
+  let act='';
+  const canAdd=(byPhone&&digits.length>=9)||(!byPhone&&q.length>=2);
+  if(canAdd && results.length===0) act+=`<button class="icon-btn" id="addNew" title="Cadastrar cliente">${I.plus}</button>`;
+  if(!byPhone && q.length>=2){
+    if(results.length===1) act+=`<button class="icon-btn" id="updOne" title="Atualizar cadastro">${I.refresh}</button>`;
+  }
+  actions.innerHTML=act;
+  const an=document.getElementById('addNew'); if(an)an.onclick=()=>openClientModal(null,{seed:q,byPhone});
+  const uo=document.getElementById('updOne'); if(uo)uo.onclick=()=>openClientModal(results[0]);
+
+  // lista de resultados
+  if(results.length){
+    box.innerHTML=`<div class="res-list">${results.map(c=>`
+      <div class="res-item" data-id="${c.id}">
+        <div class="avatar" style="background:var(--sage);color:var(--pine-d)">${esc(c.firstName[0]||'?').toUpperCase()}</div>
+        <div style="flex:1"><div class="nm">${esc(c.firstName)} ${esc(c.lastName||'')} ${c.flagged?'<span class="pill off" style="font-size:10px"><span class="dot"></span>sinalizado</span>':''}</div>
+          <div class="ph">${fmtPhone(c.phone)} · ${c.optIn?'opt-in ✓':'sem opt-in'}${c.appointments&&c.appointments.length?' · '+c.appointments.length+' agend.':''}</div></div>
+        <button class="btn-sm btn-ghost">Abrir</button>
+      </div>`).join('')}</div>`;
+    box.querySelectorAll('.res-item').forEach(el=>el.onclick=()=>openClientModal(DB.clients.find(c=>c.id===el.dataset.id)));
+  }else{
+    box.innerHTML=`<div class="res-empty">
+      <span>Nenhum cliente ${byPhone?'com esse número':'com esse nome'}. ${canAdd?'Cadastre pelo ícone <b>+</b> ao lado da busca.':''}</span>
+      ${canAdd?`<button class="btn btn-coral btn-sm" id="addNew2">${I.plus} Cadastrar</button>`:''}</div>`;
+    const a2=document.getElementById('addNew2'); if(a2)a2.onclick=()=>openClientModal(null,{seed:q,byPhone});
+  }
+}
+
+/* ---------- modal do cliente ---------- */
+let clientTab='dados', calWeek=0, calExpanded=false, selDate=null, selTime='';
+function openClientModal(client, opts={}){
+  const isNew=!client;
+  clientTab='dados'; calWeek=0; calExpanded=false; selDate=null; selTime='';
+  const seed=opts.seed||'';
+  const draft=client?JSON.parse(JSON.stringify(client)):{
+    id:null,firstName:opts.byPhone?'':seed,lastName:'',phone:opts.byPhone?normPhone(seed):'',
+    optIn:true,lastService:'',services:[],appointments:[],flagged:false
+  };
+  const isAdmin=SESSION.role==='admin';
+
+  const ov=document.createElement('div'); ov.className='overlay'; ov.id='clientOverlay';
+  ov.innerHTML=`<div class="modal lg"><div class="modal-head">
+    <h2>${isNew?'Novo cliente':esc(draft.firstName+' '+(draft.lastName||''))}</h2>
+    <button class="close-x" id="cx">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button data-t="dados" class="active">Dados</button>
+        <button data-t="servico">Serviço &amp; agenda</button>
+        <button data-t="hist">Histórico</button>
+      </div>
+      <div id="tabBody"></div>
+    </div>
+    <div class="modal-foot">
+      ${(!isNew&&isAdmin)?`<button class="btn btn-danger" id="delClient">${I.trash} Excluir</button>`:''}
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost" id="cancel">Cancelar</button>
+      <button class="btn btn-primary" id="save">${isNew?'Cadastrar':'Salvar'}</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)closeClientModal();};
+  document.getElementById('cx').onclick=closeClientModal;
+  document.getElementById('cancel').onclick=closeClientModal;
+
+  const dc=document.getElementById('delClient');
+  if(dc)dc.onclick=async()=>{ if(!confirm('Excluir este cliente? Ação não pode ser desfeita.'))return;
+    DB.clients=DB.clients.filter(c=>c.id!==draft.id); await saveDB(); closeClientModal(); renderApp(); toast('Cliente excluído'); };
+
+  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+    clientTab=b.dataset.t; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b)); renderClientTab(draft,isNew,isAdmin);
+  });
+  document.getElementById('save').onclick=()=>saveClient(draft,isNew,isAdmin);
+  renderClientTab(draft,isNew,isAdmin);
+}
+function closeClientModal(){ const o=document.getElementById('clientOverlay'); if(o)o.remove(); }
+
+function renderClientTab(draft,isNew,isAdmin){
+  const body=document.getElementById('tabBody');
+  if(clientTab==='dados'){
+    body.innerHTML=`
+      <div class="row2">
+        <div class="field"><label>Primeiro nome *</label><input id="f_first" class="inp" value="${esc(draft.firstName)}" placeholder="Ex.: Maria"></div>
+        <div class="field"><label>Sobrenome</label><input id="f_last" class="inp" value="${esc(draft.lastName||'')}" placeholder="opcional"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Telefone *</label><input id="f_phone" class="inp" value="${draft.phone?fmtPhone(draft.phone):''}" placeholder="79 99999-9999" inputmode="numeric">
+          <div class="hint">Sem DDD → completamos com 79. Com DDD → 11 dígitos.</div></div>
+        <div class="field"><label>Último atendimento</label><input id="f_last_serv" class="inp" type="text" value="${esc(draft.lastService||'')}" placeholder="dd/mm/aaaa (opcional)">
+          <div class="hint">Aceita data com ou sem horário. Vira parâmetro nos templates.</div></div>
+      </div>
+      <div class="check" id="optWrap" style="margin-top:4px">
+        <input type="checkbox" id="f_opt" ${draft.optIn?'checked':''}>
+        <div><div class="t">Opt-in de mensagens</div><div class="d">Marcado: pode receber WhatsApp de marketing. Desmarcado: não recebe.</div></div>
+      </div>
+      ${draft.flagged?`<div class="banner" style="margin-top:14px">${I.warn}<div>Nome sinalizado por linguagem imprópria. ${isAdmin?'Como admin você pode manter.':''}</div></div>`:''}`;
+    // máscara de telefone dinâmica
+    const fp=document.getElementById('f_phone');
+    fp.oninput=()=>{ let d=fp.value.replace(/\D/g,'').slice(0,11); fp.dataset.raw=d; fp.value=d.length>9?fmtPhone(d.length===9?normPhone(d):d):(d.length<=9?d:fmtPhone(d)); if(d.length<=9)fp.value=d; };
+  }
+  else if(clientTab==='servico'){
+    body.innerHTML=`
+      <div class="field"><label>Serviços</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="svcSearch" class="inp" placeholder="Buscar ou criar serviço…" style="flex:1">
+          <button class="icon-btn" id="svcAdd" title="Adicionar serviço">${I.plus}</button>
+        </div>
+        <div class="chips" id="svcChips"></div>
+      </div>
+      <div class="field" style="margin-top:18px"><label>Agendar atendimento</label>
+        <div class="cal-head"><span class="lbl" id="calLbl"></span>
+          <div class="cal-nav">
+            <button class="icon-btn" id="calPrev">‹</button>
+            <button class="icon-btn" id="calNext">›</button>
+            <button class="btn btn-ghost btn-sm" id="calExp">${calExpanded?'Recolher':'Ampliar'}</button>
+          </div>
+        </div>
+        <div id="calBody"></div>
+        <div id="schedLine"></div>
+      </div>`;
+    renderServiceChips(draft);
+    document.getElementById('svcAdd').onclick=()=>addServiceFromInput(draft);
+    document.getElementById('svcSearch').oninput=()=>renderServiceChips(draft);
+    document.getElementById('svcSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addServiceFromInput(draft);}};
+    document.getElementById('calPrev').onclick=()=>{calWeek--;renderCalendar(draft);};
+    document.getElementById('calNext').onclick=()=>{calWeek++;renderCalendar(draft);};
+    document.getElementById('calExp').onclick=()=>{calExpanded=!calExpanded;renderClientTab(draft,isNew,isAdmin);};
+    renderCalendar(draft);
+  }
+  else{ // histórico
+    const aps=(draft.appointments||[]).slice().sort((a,b)=>new Date(b.datetime)-new Date(a.datetime));
+    body.innerHTML=aps.length?`<div class="hist">${aps.map(a=>{
+      const d=new Date(a.datetime);
+      return `<div class="hist-item"><div class="d"><div class="dd">${d.getDate()}</div><div class="mm">${d.toLocaleDateString('pt-BR',{month:'short'})}</div></div>
+        <div style="flex:1"><div style="font-weight:600">${esc(a.service||'Atendimento')}</div>
+          <div style="font-size:12.5px;color:var(--muted)">${d.toLocaleDateString('pt-BR')} ${a.time||''}</div></div>
+        ${isAdmin?`<button class="icon-btn danger" data-ap="${a.id}">${I.trash}</button>`:''}</div>`;
+    }).join('')}</div>`:`<div class="empty">${I.empty}<div>Nenhum agendamento registrado ainda.</div></div>`;
+    body.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{
+      draft.appointments=draft.appointments.filter(x=>x.id!==b.dataset.ap); renderClientTab(draft,isNew,isAdmin);
+    });
+  }
+}
+function renderServiceChips(draft){
+  const cont=document.getElementById('svcChips'); if(!cont)return;
+  const term=(document.getElementById('svcSearch').value||'').toLowerCase();
+  const list=DB.services.filter(s=>s.toLowerCase().includes(term));
+  cont.innerHTML=list.map(s=>`<span class="chip ${draft.services.includes(s)?'sel':''}" data-s="${esc(s)}">${esc(s)}</span>`).join('')
+    || `<span style="font-size:12.5px;color:var(--muted)">Nenhum serviço ainda. Digite e clique em + para criar o primeiro.</span>`;
+  cont.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    const s=c.dataset.s; const i=draft.services.indexOf(s);
+    if(i>=0)draft.services.splice(i,1); else draft.services.push(s); renderServiceChips(draft);
+  });
+}
+async function addServiceFromInput(draft){
+  const inp=document.getElementById('svcSearch'); const name=inp.value.trim();
+  if(!name)return;
+  if(!DB.services.some(s=>s.toLowerCase()===name.toLowerCase())){ DB.services.push(name); await saveDB(); }
+  if(!draft.services.includes(name))draft.services.push(name);
+  inp.value=''; renderServiceChips(draft); toast('Serviço adicionado');
+}
+
+/* calendário: semana atual + navegação + ampliar (mês) */
+function startOfWeek(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+function scheduleDayEnabled(date){
+  const keys=['dom','seg','ter','qua','qui','sex','sab'];
+  const cfg=DB.schedule[keys[date.getDay()]]; return cfg&&cfg.enabled;
+}
+function renderCalendar(draft){
+  const base=startOfWeek(new Date()); base.setDate(base.getDate()+calWeek*7);
+  const lbl=document.getElementById('calLbl');
+  const names=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const today=new Date(); today.setHours(0,0,0,0);
+  const body=document.getElementById('calBody');
+  if(!calExpanded){
+    lbl.textContent=base.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})+' – '+new Date(base.getFullYear(),base.getMonth(),base.getDate()+6).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    let html='<div class="week">';
+    for(let i=0;i<7;i++){ const d=new Date(base); d.setDate(base.getDate()+i);
+      const isToday=d.getTime()===today.getTime();
+      const off=!scheduleDayEnabled(d);
+      const sel=selDate&&d.toDateString()===selDate;
+      html+=`<div class="day ${sel?'sel':''} ${isToday?'today':''} ${off?'off':''}" data-d="${d.toISOString()}">
+        <div class="dn">${names[i]}</div><div class="dd">${d.getDate()}</div></div>`; }
+    html+='</div>'; body.innerHTML=html;
+  }else{
+    const mBase=new Date(base.getFullYear(),base.getMonth(),1);
+    lbl.textContent=mBase.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    const first=(mBase.getDay()+6)%7; const dim=new Date(mBase.getFullYear(),mBase.getMonth()+1,0).getDate();
+    let html='<div class="month">'+names.map(n=>`<div class="mh">${n}</div>`).join('');
+    for(let i=0;i<first;i++)html+='<div class="md blank"></div>';
+    for(let dd=1;dd<=dim;dd++){ const d=new Date(mBase.getFullYear(),mBase.getMonth(),dd);
+      const isToday=d.getTime()===today.getTime(); const sel=selDate&&d.toDateString()===selDate;
+      html+=`<div class="md ${sel?'sel':''} ${isToday?'today':''}" data-d="${d.toISOString()}">${dd}</div>`; }
+    html+='</div>'; body.innerHTML=html;
+    // navegação por mês quando ampliado
+    document.getElementById('calPrev').onclick=()=>{calWeek-=4;renderCalendar(draft);};
+    document.getElementById('calNext').onclick=()=>{calWeek+=4;renderCalendar(draft);};
+  }
+  body.querySelectorAll('[data-d]').forEach(el=>{ if(el.classList.contains('off'))return;
+    el.onclick=()=>{ selDate=new Date(el.dataset.d).toDateString();
+      const now=new Date(); selTime=selTime||`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      renderCalendar(draft); renderSchedLine(draft); };
+  });
+  renderSchedLine(draft);
+}
+function renderSchedLine(draft){
+  const el=document.getElementById('schedLine'); if(!el)return;
+  if(!selDate){ el.innerHTML=''; return; }
+  const d=new Date(selDate);
+  el.innerHTML=`<div class="sched-line">
+    <span class="t">${d.toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}</span>
+    <input id="apTime" class="inp time-in" type="time" value="${selTime}">
+    <select id="apSvc" class="inp" style="flex:1">
+      <option value="">Serviço (opcional)</option>
+      ${DB.services.map(s=>`<option ${draft.services.includes(s)?'selected':''}>${esc(s)}</option>`).join('')}
+    </select>
+    <button class="btn btn-coral btn-sm" id="apAdd">Agendar</button></div>`;
+  document.getElementById('apTime').onchange=e=>selTime=e.target.value;
+  document.getElementById('apAdd').onclick=()=>{
+    const time=document.getElementById('apTime').value;
+    const svc=document.getElementById('apSvc').value;
+    const dt=new Date(selDate); const[h,m]=(time||'00:00').split(':'); dt.setHours(+h,+m,0,0);
+    draft.appointments=draft.appointments||[];
+    draft.appointments.push({id:uid(),datetime:dt.toISOString(),time,service:svc});
+    draft.lastService=dt.toLocaleDateString('pt-BR')+(time?' '+time:'');
+    toast('Agendamento adicionado — salve para confirmar');
+    selDate=null; renderCalendar(draft);
+    // reflete no histórico se estiver aberto
+  };
+}
+
+async function saveClient(draft,isNew,isAdmin){
+  const first=(document.getElementById('f_first')?.value||draft.firstName||'').trim();
+  const lastN=(document.getElementById('f_last')?.value||draft.lastName||'').trim();
+  const phoneRaw=(document.getElementById('f_phone')?.dataset.raw)||(document.getElementById('f_phone')?.value)||draft.phone;
+  const opt=document.getElementById('f_opt')?document.getElementById('f_opt').checked:draft.optIn;
+  const lastServ=(document.getElementById('f_last_serv')?.value||draft.lastService||'').trim();
+
+  if(clientTab!=='dados'){ /* mantém valores do draft se salvou de outra aba */ }
+  if(!first) { switchToDados(); return toastErr('Informe o primeiro nome.'); }
+  const issue=nameIssue(first);
+  if(issue && !isAdmin){ switchToDados(); return toastErr('Nome impróprio — apenas admin pode cadastrar.'); }
+  if(!phoneValid(phoneRaw)){ switchToDados(); return toastErr('Telefone inválido.'); }
+  const phone=normPhone(phoneRaw);
+  const dupe=DB.clients.find(c=>c.phone===phone && c.id!==draft.id);
+  if(dupe){ switchToDados(); return toastErr('Já existe cliente com esse telefone: '+dupe.firstName); }
+
+  draft.firstName=first; draft.lastName=lastN; draft.phone=phone; draft.optIn=opt;
+  draft.lastService=lastServ; draft.flagged=!!issue;
+
+  if(isNew){ draft.id=uid(); draft.createdAt=Date.now(); DB.clients.push(draft); }
+  else{ const i=DB.clients.findIndex(c=>c.id===draft.id); if(i>=0)DB.clients[i]=draft; }
+  await saveDB(); closeClientModal(); toast(isNew?'Cliente cadastrado':'Cadastro atualizado');
+  if(ROUTE==='atendimento')doSearch();
+}
+function switchToDados(){ clientTab='dados'; document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.t==='dados'));
+  const d=document.querySelector('.overlay'); }
+function toastErr(m){ toast('⚠ '+m); }
+
+/* ============================================================
+   GESTÃO — dias e horários de agendamento
+   ============================================================ */
+function viewGestao(v){
+  const days=[['seg','Segunda'],['ter','Terça'],['qua','Quarta'],['qui','Quinta'],['sex','Sexta'],['sab','Sábado'],['dom','Domingo']];
+  v.innerHTML=`
+  <div class="pagehead"><div><h1>Gestão da agenda</h1>
+    <div class="greet">Defina os dias e horários em que a clínica aceita agendamentos.</div></div></div>
+  <div class="card">
+    ${days.map(([k,label])=>{const c=DB.schedule[k];return`
+    <div class="gday">
+      <div class="name"><span class="tog ${c.enabled?'on':''}" data-tog="${k}"></span>${label}</div>
+      <div class="gslots" data-day="${k}" ${c.enabled?'':'style="opacity:.4;pointer-events:none"'}>
+        <span class="lb">Atende</span>
+        <input class="inp time-in" type="time" data-f="${k}.start" value="${c.start}">
+        <span class="lb">às</span>
+        <input class="inp time-in" type="time" data-f="${k}.end" value="${c.end}">
+        <label class="lb" style="display:flex;align-items:center;gap:6px;margin-left:8px">
+          <input type="checkbox" data-lunch="${k}" ${c.lunch?'checked':''} style="accent-color:var(--pine)"> almoço</label>
+        <span class="lunchbox" data-lb="${k}" ${c.lunch?'':'style="display:none"'}>
+          <input class="inp time-in" type="time" data-f="${k}.lunchStart" value="${c.lunchStart}">
+          <span class="lb">–</span>
+          <input class="inp time-in" type="time" data-f="${k}.lunchEnd" value="${c.lunchEnd}">
+        </span>
+      </div>
+    </div>`;}).join('')}
+    <div style="margin-top:18px;text-align:right"><button class="btn btn-primary" id="saveSched">Salvar agenda</button></div>
+  </div>`;
+
+  v.querySelectorAll('[data-tog]').forEach(t=>t.onclick=()=>{
+    const k=t.dataset.tog; DB.schedule[k].enabled=!DB.schedule[k].enabled; viewGestao(v);
+  });
+  v.querySelectorAll('[data-lunch]').forEach(cb=>cb.onchange=()=>{
+    const k=cb.dataset.lunch; DB.schedule[k].lunch=cb.checked;
+    v.querySelector(`[data-lb="${k}"]`).style.display=cb.checked?'':'none';
+  });
+  document.getElementById('saveSched').onclick=async()=>{
+    v.querySelectorAll('[data-f]').forEach(inp=>{const[k,f]=inp.dataset.f.split('.');DB.schedule[k][f]=inp.value;});
+    await saveDB(); toast('Agenda salva');
+  };
+}
+
+/* ============================================================
+   CRM — templates de mensagem (somente admin)
+   ============================================================ */
+const TRIGGERS={
+  '24h_antes':'24h antes do agendamento',
+  'dia_agendamento':'No dia do agendamento',
+  '1h_antes':'1h antes do agendamento',
+  'pos_1d':'1 dia após o atendimento',
+  'pos_7d':'7 dias após o atendimento',
+  'pos_30d':'30 dias após o atendimento',
+  'aniversario':'Data especial / reativação'
+};
+const PLACEHOLDERS=['{nome}','{horario}','{data}','{servico}'];
+function viewCRM(v){
+  v.innerHTML=`
+  <div class="pagehead"><div><h1>CRM · templates de mensagem</h1>
+    <div class="greet">Monte mensagens automáticas de lembrete e pós-atendimento.</div></div>
+    <button class="btn btn-coral" id="newTpl">${I.plus} Novo template</button>
+  </div>
+  <div class="banner">${I.warn}<div>O <b>disparo automático</b> no horário certo precisa de um agendador no servidor (cron) chamando a WhAPI. Aqui você monta, ativa e testa os templates; o envio programado entra quando plugar o backend.</div></div>
+  <div id="tplList"></div>`;
+  document.getElementById('newTpl').onclick=()=>openTemplateModal(null);
+  renderTemplates();
+}
+function renderTemplates(){
+  const list=document.getElementById('tplList');
+  if(!DB.templates.length){ list.innerHTML=`<div class="card"><div class="empty">${I.crm}<div>Nenhum template ainda. Crie o primeiro lembrete de agendamento.</div></div></div>`; return; }
+  list.innerHTML=DB.templates.map(t=>`
+    <div class="tpl">
+      <div class="tpl-top"><div class="nm">${esc(t.name)}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill ${t.active?'on':'off'}"><span class="dot"></span>${t.active?'ativo':'inativo'}</span>
+          <span class="tog ${t.active?'on':''}" data-tog="${t.id}"></span>
+          <button class="icon-btn" data-edit="${t.id}">${I.edit}</button>
+          <button class="icon-btn danger" data-del="${t.id}">${I.trash}</button>
+        </div></div>
+      <span class="tpl-trigger">${TRIGGERS[t.trigger]||t.trigger}</span>
+      <div class="tpl-preview">${esc(previewMsg(t.message))}</div>
+    </div>`).join('');
+  list.querySelectorAll('[data-tog]').forEach(b=>b.onclick=async()=>{const t=DB.templates.find(x=>x.id===b.dataset.tog);t.active=!t.active;await saveDB();renderTemplates();});
+  list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openTemplateModal(DB.templates.find(x=>x.id===b.dataset.edit)));
+  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Excluir template?'))return;DB.templates=DB.templates.filter(x=>x.id!==b.dataset.del);await saveDB();renderTemplates();});
+}
+function previewMsg(m){ return (m||'').replace(/{nome}/g,'Maria').replace(/{horario}/g,'14:30').replace(/{data}/g,'12/08').replace(/{servico}/g,'limpeza de pés'); }
+
+function openTemplateModal(tpl){
+  const isNew=!tpl;
+  const d=tpl?{...tpl}:{id:null,name:'',trigger:'24h_antes',message:'Olá {nome}! Passando para lembrar do seu atendimento amanhã às {horario}. Qualquer coisa, é só responder por aqui. 💚',active:true};
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal"><div class="modal-head"><h2>${isNew?'Novo template':'Editar template'}</h2><button class="close-x" id="tx">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Nome do template</label><input id="t_name" class="inp" value="${esc(d.name)}" placeholder="Ex.: Lembrete véspera"></div>
+      <div class="field"><label>Quando disparar</label><select id="t_trig" class="inp">${Object.entries(TRIGGERS).map(([k,l])=>`<option value="${k}" ${d.trigger===k?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="field"><label>Mensagem</label><textarea id="t_msg" class="inp" rows="5" style="resize:vertical">${esc(d.message)}</textarea>
+        <div class="ph-help">${PLACEHOLDERS.map(p=>`<span class="ph-tag" data-ph="${p}">${p}</span>`).join('')}</div>
+        <div class="hint">Clique num marcador para inserir. Ele será trocado pelos dados reais do cliente.</div></div>
+      <div class="field"><label>Prévia</label><div class="tpl-preview" id="t_prev">${esc(previewMsg(d.message))}</div></div>
+      <div class="check"><input type="checkbox" id="t_active" ${d.active?'checked':''}><div><div class="t">Template ativo</div><div class="d">Só templates ativos são considerados no disparo.</div></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" id="tcancel">Cancelar</button>
+      <button class="btn btn-ghost" id="ttest">${I.send} Testar envio</button>
+      <button class="btn btn-primary" id="tsave">${isNew?'Criar':'Salvar'}</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const close=()=>ov.remove();
+  document.getElementById('tx').onclick=close; document.getElementById('tcancel').onclick=close;
+  const msg=document.getElementById('t_msg'), prev=document.getElementById('t_prev');
+  msg.oninput=()=>prev.textContent=previewMsg(msg.value);
+  ov.querySelectorAll('[data-ph]').forEach(p=>p.onclick=()=>{
+    const ph=p.dataset.ph; const s=msg.selectionStart||msg.value.length;
+    msg.value=msg.value.slice(0,s)+ph+msg.value.slice(s); prev.textContent=previewMsg(msg.value); msg.focus();
+  });
+  document.getElementById('ttest').onclick=async()=>{
+    const num=DB.config.activeNumber; if(!num)return toast('Configure o número ativo primeiro');
+    const r=await WhAPI.send(num,previewMsg(msg.value));
+    toast(r.simulated?'Envio simulado — veja o console':(r.ok?'Enviado via WhAPI':'Falha no envio'));
+  };
+  document.getElementById('tsave').onclick=async()=>{
+    const name=document.getElementById('t_name').value.trim(); if(!name)return toast('Dê um nome ao template');
+    d.name=name; d.trigger=document.getElementById('t_trig').value; d.message=msg.value; d.active=document.getElementById('t_active').checked;
+    if(isNew){d.id=uid();DB.templates.push(d);}else{const i=DB.templates.findIndex(x=>x.id===d.id);DB.templates[i]=d;}
+    await saveDB(); close(); renderTemplates(); toast('Template salvo');
+  };
+}
+
+/* ============================================================
+   CONEXÃO WHATSAPP / WhAPI (admin)
+   ============================================================ */
+function openWhatsAppModal(){
+  const cfg=DB.config;
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal"><div class="modal-head"><h2>${I.wa} Conexão WhatsApp</h2><button class="close-x" id="wx">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="banner">${I.warn}<div><b>Recomendado:</b> use um proxy no servidor (Cloudflare Worker / Netlify Function). Assim o token fica só no servidor e nunca aparece no navegador. O token direto abaixo é só para testes.</div></div>
+      <div class="field"><label>URL do proxy (recomendado)</label>
+        <input id="w_proxy" class="inp" value="${esc(cfg.proxyUrl||'')}" placeholder="https://seu-worker.workers.dev/send" autocomplete="off">
+        <div class="hint">Endpoint que guarda o token no servidor e repassa para a WhAPI. Com proxy, o token abaixo é ignorado.</div></div>
+      <div class="field"><label>Token da WhAPI (apenas testes)</label>
+        <div style="display:flex;gap:8px">
+          <input id="w_token" class="inp" type="password" value="${esc(cfg.whapiToken||'')}" placeholder="cole o token do canal WhAPI" style="flex:1" autocomplete="off">
+          <button class="icon-btn" id="w_eye" title="Mostrar/ocultar">${I.search}</button>
+        </div>
+        <div class="hint">Fica salvo no navegador — use só sem proxy, para testar.</div></div>
+      <div class="field"><label>Número ativo para disparo</label>
+        <input id="w_num" class="inp" value="${cfg.activeNumber?fmtPhone(cfg.activeNumber):''}" placeholder="79 99999-9999" inputmode="numeric">
+        <div class="hint">Número conectado ao canal WhAPI que enviará as mensagens.</div></div>
+      <div class="check" style="margin-bottom:0"><input type="checkbox" id="w_sim" ${cfg.simulate?'checked':''}>
+        <div><div class="t">Modo simulação</div><div class="d">Ligado: nada é enviado de verdade (vai para o console). Ignorado quando há proxy.</div></div></div>
+      <div id="w_status" style="margin-top:14px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="wcancel">Cancelar</button>
+      <button class="btn btn-ghost" id="wtest">${I.send} Testar conexão</button>
+      <button class="btn btn-primary" id="wsave">Salvar</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  const close=()=>ov.remove();
+  document.getElementById('wx').onclick=close; document.getElementById('wcancel').onclick=close;
+  document.getElementById('w_eye').onclick=()=>{const t=document.getElementById('w_token');t.type=t.type==='password'?'text':'password';};
+  document.getElementById('wtest').onclick=async()=>{
+    const st=document.getElementById('w_status');
+    const prev={t:DB.config.whapiToken,s:DB.config.simulate,p:DB.config.proxyUrl};
+    DB.config.proxyUrl=document.getElementById('w_proxy').value.trim();
+    DB.config.whapiToken=document.getElementById('w_token').value.trim();
+    DB.config.simulate=document.getElementById('w_sim').checked;
+    st.innerHTML='<div class="msg info">Testando conexão…</div>';
+    const r=await WhAPI.health();
+    DB.config.whapiToken=prev.t; DB.config.simulate=prev.s; DB.config.proxyUrl=prev.p;
+    if(r.viaProxy&&r.ok) st.innerHTML='<div class="msg ok">Proxy respondeu — token protegido no servidor.</div>';
+    else if(r.simulated) st.innerHTML='<div class="msg info">Modo simulação ligado — informe proxy ou token para testar de verdade.</div>';
+    else if(r.ok) st.innerHTML='<div class="msg ok">Canal conectado'+(r.text?': '+esc(r.text):'')+'.</div>';
+    else st.innerHTML='<div class="msg err">Não conectou'+(r.status?' ('+r.status+')':'')+'. Neste preview, chamadas externas são bloqueadas — funciona quando hospedado.</div>';
+  };
+  document.getElementById('wsave').onclick=async()=>{
+    const num=document.getElementById('w_num').value;
+    if(num && !phoneValid(num)) return toast('Número inválido');
+    DB.config.proxyUrl=document.getElementById('w_proxy').value.trim();
+    DB.config.whapiToken=document.getElementById('w_token').value.trim();
+    DB.config.activeNumber=num?normPhone(num):'';
+    DB.config.simulate=document.getElementById('w_sim').checked;
+    if(!DB.config.whapiToken && !DB.config.proxyUrl) DB.config.simulate=true; // sem credencial não sai da simulação
+    await saveDB(); close(); renderApp(); toast('Conexão WhatsApp salva');
+  };
+}
+
+/* ============================================================
+   GESTOR DE USUÁRIOS (admin)
+   ============================================================ */
+function openUsersModal(){
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal"><div class="modal-head"><h2>Gestor de usuários</h2><button class="close-x" id="ux">${I.x}</button></div>
+    <div class="modal-body">
+      <table><thead><tr><th>Usuário</th><th>WhatsApp</th><th>Perfil</th><th></th></tr></thead>
+      <tbody id="uBody"></tbody></table>
+      <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:16px">
+        <h3 style="font-size:14px;margin-bottom:12px">Adicionar usuário</h3>
+        <div class="row2">
+          <div class="field"><label>Nome</label><input id="u_name" class="inp" placeholder="Nome"></div>
+          <div class="field"><label>WhatsApp</label><input id="u_wa" class="inp" placeholder="79 99999-9999" inputmode="numeric"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Senha</label><input id="u_pw" class="inp" type="password" placeholder="letras e números"></div>
+          <div class="field"><label>Perfil</label><select id="u_role" class="inp">
+            <option value="funcionario">Funcionário — só cadastra clientes</option>
+            <option value="admin">Administrador — acesso total</option></select></div>
+        </div>
+        <button class="btn btn-primary" id="u_add">${I.plus} Adicionar</button>
+      </div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove();};
+  document.getElementById('ux').onclick=()=>ov.remove();
+  function drawUsers(){
+    document.getElementById('uBody').innerHTML=DB.users.map(u=>`
+      <tr><td><b>${esc(u.name)}</b></td><td>${fmtPhone(u.whatsapp)}</td>
+      <td><span class="pill ${u.role==='admin'?'on':'gray'}"><span class="dot"></span>${u.role==='admin'?'Admin':'Funcionário'}</span></td>
+      <td class="tbl-actions">${u.id!==SESSION.id?`<button class="icon-btn danger" data-del="${u.id}">${I.trash}</button>`:'<span style="font-size:11px;color:var(--muted)">você</span>'}</td></tr>`).join('');
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Remover este usuário?'))return;
+      DB.users=DB.users.filter(x=>x.id!==b.dataset.del); await saveDB(); drawUsers();
+    });
+  }
+  drawUsers();
+  document.getElementById('u_add').onclick=async()=>{
+    const name=document.getElementById('u_name').value.trim();
+    const waRaw=document.getElementById('u_wa').value; const pw=document.getElementById('u_pw').value;
+    const role=document.getElementById('u_role').value;
+    if(!name)return toast('Informe o nome');
+    if(!phoneValid(waRaw))return toast('WhatsApp inválido');
+    if(pw.length<6||!/[a-zA-Z]/.test(pw)||!/[0-9]/.test(pw))return toast('Senha: 6+ com letras e números');
+    const wa=normPhone(waRaw);
+    if(DB.users.some(u=>u.whatsapp===wa))return toast('Já existe usuário com esse número');
+    DB.users.push({id:uid(),name,whatsapp:wa,pass:await hashPass(pw),role,validated:false,createdAt:Date.now()});
+    await saveDB(); drawUsers(); toast('Usuário adicionado');
+    document.getElementById('u_name').value='';document.getElementById('u_wa').value='';document.getElementById('u_pw').value='';
+  };
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(async function(){ await loadDB(); renderAuth(); })();
+</script>
+</body>
+</html>
