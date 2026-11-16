@@ -40,3 +40,12 @@ por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 
 ## Como adicionar um bloco
 Copie um cartão de projeto em `index.html`, troque título, descrição e imagem (512x384, fundo transparente).
+
+## Galeria (fotografia.html)
+Carrossel com troca automática a cada 5 s, setas, barras de progresso, gesto de deslizar e teclado (setas).
+Pausa ao passar o mouse ou tocar. Fotos em `assets/fotografia/foto-N.jpg` (1400 px no lado maior, marca d'água gravada).
+Para adicionar uma foto: grave o arquivo, copie um bloco `.slide` e um botão `.gallery-dot` em `fotografia.html`.
+
+Proteção contra download (dissuasão, não bloqueio total): escudo transparente sobre as fotos, `pointer-events: none` e
+`draggable=false` nas imagens, menu de contexto/arrastar/copiar bloqueados, `-webkit-touch-callout: none` no celular,
+atalhos Ctrl+S/P/U bloqueados, resolução reduzida e marca d'água gravada no arquivo.
