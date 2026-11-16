@@ -36,14 +36,8 @@
       rel="stylesheet"
     />
 
-    <!-- Tailwind CSS (CDN com versão fixada) -->
-    <script src="https://unpkg.com/@tailwindcss/browser@4.3.5"></script>
-    <style type="text/tailwindcss">
-      @custom-variant dark (&:where(.dark, .dark *));
-      @theme {
-        --font-sans: "Segoe UI", "Open Sans", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-      }
-    </style>
+    <!-- CSS do Tailwind, gerado com "npm run build" -->
+    <link rel="stylesheet" href="assets/tailwind.css" />
 
     <!-- Design padrão do site -->
     <link rel="stylesheet" href="assets/site.css" />

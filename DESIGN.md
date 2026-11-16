@@ -1,7 +1,7 @@
 # Design padrão · allissonsantiago.com.br
 
 Tokens e componentes vivem em `assets/site.css`. Comportamentos em `assets/site.js`.
-Todas as páginas usam Tailwind (CDN, versão fixada) + esses dois arquivos.
+O CSS do Tailwind é gerado: `npm install` e `npm run build` (entrada em `src/input.css`, saída em `assets/tailwind.css`, que vai versionado). Rode o build sempre que alterar classes nos HTML.
 
 ## Cores
 | Uso | Token | Valor |

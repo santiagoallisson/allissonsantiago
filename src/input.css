@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@source "../*.html";
+
+/* Modo escuro por classe */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Segoe UI", "Open Sans", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
