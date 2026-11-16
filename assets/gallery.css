@@ -1,55 +1,57 @@
-/* Galeria: carrossel com transição automática */
-.gallery { position: relative; }
-.gallery-stage {
+/* Galeria vertical: fotos inteiras, coladas, legenda no rodapé de cada uma */
+.feed {
+  max-width: 48rem;               /* 768 px: fotos verticais cabem sem ficar gigantes */
+  margin-inline: auto;
+  background: #fff;
+}
+.dark .feed { background: #000; }
+
+.shot {
   position: relative;
-  overflow: hidden;
-  border-radius: var(--radius);
-  background: #09090b;
-  aspect-ratio: 4 / 5;
-  touch-action: pan-y;           /* rolagem vertical livre, gesto horizontal vira troca */
+  margin: 0;
+  line-height: 0;                 /* sem fresta entre uma foto e a próxima */
   -webkit-user-select: none; user-select: none;
-  -webkit-touch-callout: none;   /* sem menu "salvar imagem" ao segurar no iOS */
+  -webkit-touch-callout: none;    /* sem menu "salvar imagem" ao segurar no celular */
 }
-@media (min-width: 768px) { .gallery-stage { aspect-ratio: 16 / 9; max-height: 80vh; width: 100%; } }
-
-.slide { position: absolute; inset: 0; opacity: 0; transition: opacity 900ms ease; pointer-events: none; }
-.slide.is-active { opacity: 1; }
-
-/* Fundo desfocado da própria foto: preenche o quadro em qualquer proporção */
-.slide-bg, .slide-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.slide-bg { object-fit: cover; filter: blur(32px) saturate(1.2) brightness(.65); transform: scale(1.2); }
-.slide-img { object-fit: contain; }
-.slide.is-active .slide-img { animation: kenburns 7s ease-out both; }
-@keyframes kenburns { from { transform: scale(1); } to { transform: scale(1.045); } }
-
-/* As imagens nunca recebem clique, arrasto ou seleção */
-.gallery img { pointer-events: none; -webkit-user-drag: none; user-select: none; }
-
-/* Escudo transparente por cima das fotos: captura toques e cliques */
-.gallery-shield { position: absolute; inset: 0; z-index: 5; background: transparent; cursor: grab; }
-
-.gallery-btn {
-  position: absolute; top: 50%; z-index: 10; translate: 0 -50%;
-  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 9999px;
-  color: #fff; background: rgb(0 0 0 / .35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  border: 1px solid rgb(255 255 255 / .25); transition: background .2s, scale .2s;
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;                   /* mantém a proporção: nada é cortado */
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
-.gallery-btn:hover { background: rgb(130 0 219 / .85); scale: 1.06; }
-.gallery-prev { left: .75rem; } .gallery-next { right: .75rem; }
+/* Escudo transparente por cima da foto: captura cliques e toques */
+.shot-shield { position: absolute; inset: 0; z-index: 2; background: transparent; }
 
-.gallery-dots { position: absolute; left: 0; right: 0; bottom: .9rem; z-index: 10; display: flex; justify-content: center; gap: .5rem; }
-.gallery-dot { position: relative; width: 1.6rem; height: .3rem; border-radius: 9999px; background: rgb(255 255 255 / .35); overflow: hidden; }
-.gallery-dot::after { content: ""; position: absolute; inset: 0; background: #fff; transform: scaleX(0); transform-origin: left; }
-.gallery-dot.is-done::after { transform: scaleX(1); }
-.gallery-dot.is-active::after { animation: progress var(--interval, 5s) linear forwards; }
-.gallery.is-paused .gallery-dot.is-active::after { animation-play-state: paused; }
-@keyframes progress { to { transform: scaleX(1); } }
+.shot figcaption {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  padding: 3.5rem 1.25rem 1.1rem;
+  line-height: 1.3;
+  font-size: 1.05rem; font-weight: 600; letter-spacing: .01em; color: #fff;
+  background: linear-gradient(to top, rgb(0 0 0 / .65), rgb(0 0 0 / 0));
+  text-shadow: 0 1px 8px rgb(0 0 0 / .35);
+  pointer-events: none;
+}
+@media (min-width: 768px) { .shot figcaption { font-size: 1.2rem; padding: 4.5rem 1.75rem 1.4rem; } }
 
-.gallery-count { position: absolute; top: .9rem; right: .9rem; z-index: 10; padding: .2rem .65rem; border-radius: 9999px; font-size: .75rem; font-weight: 600; color: #fff; background: rgb(0 0 0 / .35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+/* Entrada suave ao rolar (só quando o JavaScript está ativo) */
+.has-js .shot { opacity: 0; transition: opacity .7s ease; }
+.has-js .shot.is-visible { opacity: 1; }
+
+/* Botão de voltar ao topo */
+.to-top {
+  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 50;
+  display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border-radius: 9999px;
+  color: #fff; background: var(--brand-400);
+  box-shadow: 0 4px 16px rgb(130 0 219 / .28);
+  opacity: 0; translate: 0 .75rem; pointer-events: none;
+  transition: opacity .25s ease, translate .25s ease, background-color .2s ease;
+}
+.to-top.is-shown { opacity: 1; translate: 0 0; pointer-events: auto; }
+.to-top:hover { background: var(--brand-600); }
 
 @media (prefers-reduced-motion: reduce) {
-  .slide { transition: none; }
-  .slide.is-active .slide-img { animation: none; }
+  .has-js .shot { opacity: 1; transition: none; }
+  .to-top { transition: none; }
 }
-/* Impressão: sem fotos */
-@media print { .gallery { display: none; } }
+@media print { .feed, .to-top { display: none; } }

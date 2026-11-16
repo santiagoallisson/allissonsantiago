@@ -42,10 +42,10 @@ por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 Copie um cartão de projeto em `index.html`, troque título, descrição e imagem (512x384, fundo transparente).
 
 ## Galeria (fotografia.html)
-Carrossel com troca automática a cada 5 s, setas, barras de progresso, gesto de deslizar e teclado (setas).
-Pausa ao passar o mouse ou tocar. Fotos em `assets/fotografia/foto-N.jpg` (1400 px no lado maior, marca d'água gravada).
-Para adicionar uma foto: grave o arquivo, copie um bloco `.slide` e um botão `.gallery-dot` em `fotografia.html`.
+Rolagem vertical: fotos inteiras (sem corte), coladas uma na outra, coluna de 768 px, fundo branco no tema claro e preto no escuro.
+Cada foto tem legenda no rodapé (`<figcaption>`, texto sobre degradê escuro). Botão lilás de voltar ao topo (canto inferior direito) aparece após rolar.
+Fotos em `assets/fotografia/foto-N.jpg` (1400 px no lado maior, sem marca d'água).
+Para adicionar uma foto: grave o arquivo e copie um bloco `<figure class="shot">` em `fotografia.html`, trocando arquivo, texto alternativo e legenda.
 
-Proteção contra download (dissuasão, não bloqueio total): escudo transparente sobre as fotos, `pointer-events: none` e
-`draggable=false` nas imagens, menu de contexto/arrastar/copiar bloqueados, `-webkit-touch-callout: none` no celular,
-atalhos Ctrl+S/P/U bloqueados, resolução reduzida e marca d'água gravada no arquivo.
+Proteção contra download (dissuasão, não bloqueio total): escudo transparente sobre cada foto, `pointer-events: none` e `draggable=false`,
+menu de contexto/arrastar/copiar bloqueados, `-webkit-touch-callout: none` no celular, atalhos Ctrl+S/P/U bloqueados, resolução reduzida.
