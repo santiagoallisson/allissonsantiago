@@ -49,3 +49,7 @@ Para adicionar uma foto: grave o arquivo e copie um bloco `<figure class="shot">
 
 Proteção contra download (dissuasão, não bloqueio total): escudo transparente sobre cada foto, `pointer-events: none` e `draggable=false`,
 menu de contexto/arrastar/copiar bloqueados, `-webkit-touch-callout: none` no celular, atalhos Ctrl+S/P/U bloqueados, resolução reduzida.
+
+## Endereços
+Links internos usam endereços limpos (`/sobremim`, `/fotografia`, `/em-construcao`, `/`). O GitHub Pages entrega o arquivo `.html` correspondente.
+Ao criar uma página nova, use o mesmo padrão nos links e no `canonical`.
