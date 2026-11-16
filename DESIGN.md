@@ -42,7 +42,7 @@ por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 Copie um cartão de projeto em `index.html`, troque título, descrição e imagem (512x384, fundo transparente).
 
 ## Galeria (fotografia.html)
-Rolagem vertical: fotos inteiras (sem corte), coladas uma na outra, coluna de 768 px, fundo branco no tema claro e preto no escuro.
+Rolagem vertical: fotos inteiras (sem corte), coladas uma na outra, coluna de 768 px (a foto horizontal `.shot--wide` chega a 1600 px quando a janela comporta), fundo branco no tema claro e preto no escuro.
 Cada foto tem legenda no rodapé (`<figcaption>`, texto sobre degradê escuro). Botão lilás de voltar ao topo (canto inferior direito) aparece após rolar.
 Fotos em `assets/fotografia/foto-N.jpg` (1400 px no lado maior, sem marca d'água).
 Para adicionar uma foto: grave o arquivo e copie um bloco `<figure class="shot">` em `fotografia.html`, trocando arquivo, texto alternativo e legenda.
