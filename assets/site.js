@@ -21,6 +21,6 @@
   var p = location.pathname;
   if (/\.html$/.test(p) && history.replaceState) {
     var clean = p.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
-    history.replaceState(null, "", clean + location.search + location.hash);
+    try { history.replaceState(null, "", clean + location.search + location.hash); } catch (e) {}
   }
 })();

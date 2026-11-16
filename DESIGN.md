@@ -51,3 +51,9 @@ menu de contexto/arrastar/copiar bloqueados, `-webkit-touch-callout: none` no ce
 ## Endereços
 Links internos usam endereços limpos (`/sobremim`, `/fotografia`, `/em-construcao`, `/`). O GitHub Pages entrega o arquivo `.html` correspondente.
 Ao criar uma página nova, use o mesmo padrão nos links e no `canonical`.
+
+## Café com (c)alma (/cafecomalma)
+Página com uma carta sorteada a cada acesso. Frases em `assets/cafe-frases.js` (autor, frase, significado): para adicionar, copie um bloco e cole ao final da lista.
+Sorteio no navegador: baralho embaralhado por visitante, sem repetir antes de passar por todas e nunca a mesma em seguida. Clicar na carta gira e mostra o significado.
+"Compartilhar no Instagram" gera uma imagem 1080x1920 (Stories) com "Meu momento" em cinza no topo, a carta e o ícone; no celular abre o menu de compartilhamento, no computador baixa o PNG.
+O botão de recarregar (ao lado) troca a carta. Ícone do rodapé: SVG inline em cinza, convertido do EPS original.
