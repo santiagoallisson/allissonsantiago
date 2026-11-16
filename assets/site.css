@@ -1,0 +1,109 @@
+/* ==========================================================================
+   Allisson Santiago · Design padrão
+   Tokens e componentes compartilhados por todas as páginas.
+   Documentação completa em DESIGN.md
+   ========================================================================== */
+
+:root {
+  /* Marca */
+  --brand-700: #8200db;   /* purple-700: botões e destaques */
+  --brand-600: #9810fa;   /* purple-600: hover */
+  --brand-400: #c27aff;   /* purple-400: destaques no modo escuro */
+  --brand-100: #f3e8ff;   /* purple-100: véu sobre o brilho */
+  --brand-900: #59168b;   /* purple-900: véu no modo escuro */
+
+  /* Brilho (glow) dos cartões */
+  --glow-pink: #fda5d5;   /* pink-300 */
+  --glow-indigo: #c7d2fe; /* indigo-200 */
+  --glow-purple: #e9d5ff; /* purple-200 */
+
+  /* Superfícies e texto (zinc) */
+  --surface: #f4f4f5;     /* zinc-100 */
+  --surface-hover: #e4e4e7;
+  --page: #ffffff;
+  --text: #27272a;        /* zinc-800 */
+  --text-strong: #09090b; /* zinc-950 */
+  --text-muted: #52525b;  /* zinc-600 */
+  --text-subtle: #a1a1aa; /* zinc-400 */
+
+  /* Forma */
+  --radius: 0.75rem;      /* rounded-xl */
+  --gap: 1.5rem;
+
+  /* Tipografia: Segoe UI é a fonte do perfil no Instagram (Windows).
+     Open Sans é a alternativa web mais próxima para os demais sistemas. */
+  --font-sans: "Segoe UI", "Open Sans", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.dark {
+  --glow-indigo: rgb(129 140 248 / 0.5);
+  --glow-purple: rgb(192 132 252 / 0.5);
+  --surface: #18181b;     /* zinc-900 */
+  --surface-hover: #27272a;
+  --page: #09090b;        /* zinc-950 */
+  --text: #f4f4f5;
+  --text-strong: #ffffff;
+  --text-muted: #a1a1aa;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Textos justificados (pt-BR, com hifenização para evitar buracos) */
+.justify {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  text-wrap: pretty;
+}
+
+/* Descrições curtas dos cartões: justificadas, sem quebrar palavras */
+.justify.justify-card { hyphens: manual; -webkit-hyphens: manual; }
+
+/* Cartão com brilho: substitui os 4 elementos de blur repetidos em cada bloco */
+.glow {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--surface);
+}
+.glow::before,
+.glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.glow::before {
+  background:
+    radial-gradient(18rem 18rem at 0% 0%, var(--glow-pink), transparent 70%),
+    radial-gradient(28rem 28rem at 100% 100%, var(--glow-indigo), transparent 70%),
+    radial-gradient(28rem 28rem at 100% 0%, var(--glow-purple), transparent 70%);
+  filter: blur(24px);
+}
+.glow::after {
+  background: rgb(243 232 255 / 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.dark .glow::after {
+  background: rgb(89 22 139 / 0.75);
+}
+
+/* Animação da página em construção (respeita preferência de movimento reduzido) */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin-slow { animation: none; }
+  html { scroll-behavior: auto !important; }
+}
+
+/* Foco visível para navegação por teclado */
+:focus-visible {
+  outline: 2px solid var(--brand-600);
+  outline-offset: 3px;
+}
