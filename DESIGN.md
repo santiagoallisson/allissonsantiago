@@ -9,8 +9,6 @@ O CSS do Tailwind é gerado: `npm install` e `npm run build` (entrada em `src/in
 | Destaque / botão | `--brand-700` (purple-700) | `#8200db` |
 | Hover do botão | `--brand-600` | `#9810fa` |
 | Destaque no escuro | `--brand-400` | `#c27aff` |
-| Brilho dos cartões | pink-300 / indigo-200 / purple-200 | `#fda5d5` / `#c7d2fe` / `#e9d5ff` |
-| Véu do brilho | purple-100 a 50% (claro), purple-900 a 75% (escuro) | |
 | Superfície | zinc-100 (claro) / zinc-900 (escuro) | `#f4f4f5` / `#18181b` |
 | Fundo | white / zinc-950 | `#fff` / `#09090b` |
 | Texto | zinc-800, títulos zinc-950, apoio zinc-600 | |
@@ -29,7 +27,7 @@ por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 | Descrição de cartão / lista | 14px, zinc-600 |
 
 ## Componentes
-- **Cartão com brilho** `.glow` + `rounded-xl`: apresentação, foto, contato, em construção.
+- **Painel** `.panel` + `rounded-xl`: superfície lisa, cinza do cartão CRM (zinc-100 no claro, zinc-900 no escuro). Usado em apresentação, foto, contato e em construção.
 - **Cartão de projeto**: `bg-zinc-100`, `p-6`, `md:col-span-4`, título + descrição + ilustração, seta no hover.
 - **Botão primário**: `bg-purple-700`, branco, `rounded-lg`, `px-5 py-3`, `text-sm font-semibold`.
 - **Grade**: `max-w-6xl`, 12 colunas no desktop, `gap-6`. Raio padrão `rounded-xl`.
