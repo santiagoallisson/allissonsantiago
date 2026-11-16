@@ -29,7 +29,7 @@ por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 ## Componentes
 - **Painel** `.panel` + `rounded-xl`: superfície lisa, cinza do cartão CRM (zinc-100 no claro, zinc-900 no escuro). Usado em apresentação, foto, contato e em construção.
 - **Cartão de projeto**: `bg-zinc-100`, `p-6`, `md:col-span-4`, título + descrição + ilustração, seta no hover.
-- **Botão primário**: `bg-purple-700`, branco, `rounded-lg`, `px-5 py-3`, `text-sm font-semibold`.
+- **Botão primário**: cinza do menu (zinc-800 com texto branco no claro; zinc-100 com texto escuro no escuro), `rounded-lg`, `px-5 py-3`, `text-sm`; fica lilás (purple-400) ao passar o mouse, tocar ou focar.
 - **Grade**: `max-w-6xl`, 12 colunas no desktop, `gap-6`. Raio padrão `rounded-xl`.
 - **Modo escuro**: classe `dark` no `<html>`, salvo em `localStorage`, respeita o sistema.
 
