@@ -14,7 +14,7 @@ O CSS do Tailwind é gerado: `npm install` e `npm run build` (entrada em `src/in
 | Texto | zinc-800, títulos zinc-950, apoio zinc-600 | |
 
 ## Tipografia
-Família: **Segoe UI**, alternativa **Open Sans**, depois fontes do sistema (`--font-sans`).
+Estilo do nome "Allisson Santiago": peso leve (300) e letras espaçadas (`tracking-wider`) em títulos, menu e botões (botões em peso normal para legibilidade); texto corrido em peso normal. Família: **Segoe UI**, alternativa **Open Sans**, depois fontes do sistema (`--font-sans`).
 Segoe UI é a fonte do perfil no Instagram, mas é proprietária e só existe no Windows;
 por isso Open Sans (humanista, muito próxima) cobre Mac, Android e iOS.
 
